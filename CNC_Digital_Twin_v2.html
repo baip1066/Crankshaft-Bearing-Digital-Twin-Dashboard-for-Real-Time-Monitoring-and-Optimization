@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CNC Digital Twin — Parameter Optimisation Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg0: #080c10;
+  --bg1: #0d1420;
+  --bg2: #111c2d;
+  --bg3: #172035;
+  --bg4: #1e2a40;
+  --border: rgba(64,160,255,0.12);
+  --border2: rgba(64,160,255,0.22);
+  --amber: #f0a500;
+  --amber2: #ffcc44;
+  --amber3: rgba(240,165,0,0.15);
+  --teal: #00c896;
+  --teal2: rgba(0,200,150,0.15);
+  --red: #ff4560;
+  --red2: rgba(255,69,96,0.15);
+  --blue: #40a0ff;
+  --blue2: rgba(64,160,255,0.15);
+  --muted: #4a6080;
+  --text0: #e8f0ff;
+  --text1: #8ba8cc;
+  --text2: #4a6080;
+  --mono: 'Share Tech Mono', monospace;
+  --display: 'Orbitron', monospace;
+  --body: 'Rajdhani', sans-serif;
+  --glow-a: 0 0 10px rgba(240,165,0,0.4), 0 0 30px rgba(240,165,0,0.15);
+  --glow-t: 0 0 10px rgba(0,200,150,0.4), 0 0 30px rgba(0,200,150,0.15);
+  --glow-b: 0 0 10px rgba(64,160,255,0.4), 0 0 30px rgba(64,160,255,0.15);
+  --glow-r: 0 0 10px rgba(255,69,96,0.4), 0 0 30px rgba(255,69,96,0.15);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow-x:hidden;}
+body{
+  font-family:var(--body);
+  background:var(--bg0);
+  color:var(--text0);
+  font-size:14px;
+  background-image:
+    repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(64,160,255,0.03) 39px,rgba(64,160,255,0.03) 40px),
+    repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(64,160,255,0.03) 39px,rgba(64,160,255,0.03) 40px);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg1);}
+::-webkit-scrollbar-thumb{background:var(--muted);border-radius:2px;}
+
+/* ── Layout ── */
+.shell{max-width:1440px;margin:0 auto;padding:16px;}
+
+/* ── Header ── */
+.header{
+  display:flex;align-items:center;gap:20px;
+  padding:12px 20px;margin-bottom:16px;
+  background:var(--bg1);
+  border:1px solid var(--border2);
+  border-radius:6px;
+  position:relative;overflow:hidden;
+}
+.header::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--blue),var(--amber),transparent);
+}
+.header-brand{display:flex;align-items:center;gap:12px;}
+.logo-box{
+  width:36px;height:36px;border:1px solid var(--amber);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.logo-box::after{
+  content:'';position:absolute;inset:-3px;border:1px solid rgba(240,165,0,0.3);
+}
+.logo-text{font-family:var(--display);font-size:11px;color:var(--amber);font-weight:700;line-height:1;}
+.brand-name{font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:0.15em;color:var(--text0);}
+.brand-sub{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:0.2em;margin-top:1px;}
+.header-machine{margin-left:auto;display:flex;align-items:center;gap:24px;}
+.machine-id{font-family:var(--mono);font-size:10px;color:var(--text1);}
+.machine-id span{color:var(--blue);}
+.status-pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:var(--glow-t);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.6;transform:scale(0.85);}}
+.clock{font-family:var(--display);font-size:13px;color:var(--amber);letter-spacing:0.1em;}
+.header-divider{width:1px;height:30px;background:var(--border2);}
+
+/* ── KPI Row ── */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px;}
+.kpi-card{
+  background:var(--bg1);
+  border:1px solid var(--border);
+  border-radius:6px;padding:14px 16px;
+  position:relative;overflow:hidden;
+  transition:border-color 0.3s,box-shadow 0.3s;
+  cursor:default;
+}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;transition:background 0.3s;}
+.kpi-card.good::before{background:var(--teal);box-shadow:var(--glow-t);}
+.kpi-card.warn::before{background:var(--amber);box-shadow:var(--glow-a);}
+.kpi-card.bad::before{background:var(--red);box-shadow:var(--glow-r);}
+.kpi-card.good{border-color:rgba(0,200,150,0.25);}
+.kpi-card.warn{border-color:rgba(240,165,0,0.25);}
+.kpi-card.bad{border-color:rgba(255,69,96,0.25);}
+.kpi-label{font-family:var(--mono);font-size:9px;letter-spacing:0.15em;color:var(--text2);margin-bottom:6px;}
+.kpi-value{font-family:var(--display);font-size:22px;font-weight:700;line-height:1;transition:color 0.3s,text-shadow 0.3s;}
+.kpi-card.good .kpi-value{color:var(--teal);text-shadow:var(--glow-t);}
+.kpi-card.warn .kpi-value{color:var(--amber);text-shadow:var(--glow-a);}
+.kpi-card.bad .kpi-value{color:var(--red);text-shadow:var(--glow-r);}
+.kpi-unit{font-family:var(--mono);font-size:10px;color:var(--text2);margin-left:4px;}
+.kpi-sub{font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:5px;}
+.kpi-bar-wrap{height:3px;background:var(--bg3);border-radius:2px;margin-top:8px;}
+.kpi-bar{height:100%;border-radius:2px;transition:width 0.5s ease, background 0.3s;}
+
+/* ── Main Grid ── */
+.main-grid{display:grid;grid-template-columns:300px 1fr 260px;gap:12px;margin-bottom:12px;}
+
+/* ── Panel base ── */
+.panel{
+  background:var(--bg1);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:16px;
+}
+.panel-title{
+  font-family:var(--mono);font-size:9px;
+  letter-spacing:0.2em;color:var(--text2);
+  margin-bottom:14px;display:flex;align-items:center;gap:8px;
+}
+.panel-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── Material Selector ── */
+.mat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;}
+.mat-btn{
+  padding:7px 8px;border-radius:4px;
+  background:var(--bg2);border:1px solid var(--border);
+  color:var(--text1);font-family:var(--mono);font-size:9px;
+  cursor:pointer;transition:all 0.2s;
+  display:flex;align-items:center;gap:5px;
+  letter-spacing:0.05em;
+}
+.mat-btn:hover{border-color:var(--border2);background:var(--bg3);}
+.mat-btn.active{border-color:var(--amber);background:rgba(240,165,0,0.08);color:var(--amber2);}
+.mat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.mat-iso{opacity:0.5;margin-left:auto;}
+
+/* ── Sliders ── */
+.slider-group{margin-bottom:12px;}
+.slider-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;}
+.slider-label{font-family:var(--mono);font-size:10px;color:var(--text1);}
+.slider-val{font-family:var(--display);font-size:14px;color:var(--amber2);font-weight:600;}
+.slider-unit{font-family:var(--mono);font-size:9px;color:var(--text2);margin-left:2px;}
+input[type=range]{
+  width:100%;appearance:none;height:3px;
+  background:linear-gradient(90deg,var(--amber) var(--pct,50%),var(--bg4) var(--pct,50%));
+  border-radius:2px;outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  appearance:none;width:13px;height:13px;
+  border-radius:50%;background:var(--amber2);
+  border:2px solid var(--bg0);
+  box-shadow:0 0 8px rgba(240,165,0,0.6);
+  transition:transform 0.15s;
+}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.3);}
+.slider-ticks{display:flex;justify-content:space-between;margin-top:2px;}
+.slider-tick{font-family:var(--mono);font-size:8px;color:var(--text2);}
+
+/* ── Toggles ── */
+.toggle-row{display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);}
+.toggle-label{font-family:var(--mono);font-size:10px;color:var(--text1);}
+.toggle-switch{width:40px;height:20px;background:var(--bg3);border-radius:10px;position:relative;cursor:pointer;border:1px solid var(--border);transition:background 0.25s;}
+.toggle-switch.on{background:rgba(0,200,150,0.2);border-color:var(--teal);}
+.toggle-knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--muted);transition:left 0.25s,background 0.25s,box-shadow 0.25s;}
+.toggle-switch.on .toggle-knob{left:22px;background:var(--teal);box-shadow:var(--glow-t);}
+.toggle-state{font-family:var(--mono);font-size:10px;color:var(--text2);transition:color 0.25s;}
+.toggle-switch.on + .toggle-state{color:var(--teal);}
+
+/* ── Buttons ── */
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+.btn{
+  padding:10px;border:1px solid var(--border2);
+  background:var(--bg2);border-radius:4px;
+  font-family:var(--mono);font-size:10px;letter-spacing:0.1em;
+  color:var(--text1);cursor:pointer;
+  transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.btn:hover{background:var(--bg3);border-color:var(--blue);color:var(--blue);box-shadow:var(--glow-b);}
+.btn.primary{background:rgba(0,200,150,0.1);border-color:var(--teal);color:var(--teal);}
+.btn.primary:hover{background:rgba(0,200,150,0.2);box-shadow:var(--glow-t);}
+.btn.active-flash{animation:flash 0.5s ease;}
+@keyframes flash{0%{background:rgba(0,200,150,0.3);}100%{background:rgba(0,200,150,0.1);}}
+
+/* ── SVG Schematic Panel ── */
+.twin-panel{
+  background:var(--bg1);border:1px solid var(--border);
+  border-radius:6px;padding:14px;
+  display:flex;flex-direction:column;
+}
+.twin-svg-wrap{flex:1;display:flex;align-items:center;justify-content:center;}
+#twin-svg{width:100%;height:280px;}
+
+/* ── DfX Panel ── */
+.dfx-list{display:flex;flex-direction:column;gap:10px;}
+.dfx-item{}
+.dfx-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+.dfx-name{font-family:var(--mono);font-size:10px;color:var(--text1);}
+.dfx-full{font-family:var(--mono);font-size:8px;color:var(--text2);margin-left:4px;}
+.dfx-score{font-family:var(--display);font-size:13px;font-weight:600;}
+.dfx-bar-wrap{height:4px;background:var(--bg3);border-radius:2px;}
+.dfx-bar{height:100%;border-radius:2px;transition:width 0.5s ease, background 0.3s;}
+.dfx-overall{
+  margin-top:14px;padding-top:14px;border-top:1px solid var(--border);
+  text-align:center;
+}
+.dfx-overall-label{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:0.15em;margin-bottom:6px;}
+.dfx-overall-val{font-family:var(--display);font-size:32px;font-weight:700;transition:color 0.3s,text-shadow 0.3s;}
+.optimised-badge{
+  display:none;margin-top:8px;
+  padding:4px 10px;border-radius:3px;
+  font-family:var(--mono);font-size:9px;letter-spacing:0.1em;
+  border:1px solid var(--teal);color:var(--teal);
+  background:rgba(0,200,150,0.08);
+}
+
+/* ── Chart Area ── */
+.chart-area{
+  background:var(--bg1);border:1px solid var(--border);
+  border-radius:6px;overflow:hidden;
+}
+.tab-bar{
+  display:flex;border-bottom:1px solid var(--border);
+  padding:0 16px;background:var(--bg0);
+}
+.tab-btn{
+  padding:11px 18px;font-family:var(--mono);font-size:10px;
+  letter-spacing:0.12em;color:var(--text2);cursor:pointer;
+  border-bottom:2px solid transparent;transition:all 0.2s;
+  background:none;border-top:none;border-left:none;border-right:none;
+}
+.tab-btn:hover{color:var(--text1);}
+.tab-btn.active{color:var(--amber);border-bottom-color:var(--amber);}
+.tab-content{padding:16px;display:none;}
+.tab-content.active{display:block;}
+canvas{display:block;}
+
+/* ── History sparklines ── */
+.history-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.spark-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:4px;padding:10px 12px;
+}
+.spark-label{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:0.1em;margin-bottom:6px;}
+.spark-current{font-family:var(--display);font-size:15px;font-weight:600;margin-bottom:6px;}
+canvas.spark{width:100%;height:40px;}
+
+/* ── Agent Panel ── */
+.agent-panel{
+  background:var(--bg1);border:1px solid var(--border);
+  border-radius:6px;margin-top:12px;
+  overflow:hidden;
+}
+.agent-header{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  background:var(--bg0);
+}
+.agent-icon{
+  width:26px;height:26px;border-radius:50%;
+  background:rgba(64,160,255,0.1);border:1px solid var(--blue);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;
+}
+.agent-title{font-family:var(--display);font-size:11px;color:var(--blue);letter-spacing:0.1em;}
+.agent-body{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);}
+.agent-cell{background:var(--bg1);padding:14px 16px;}
+.agent-cell-label{font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:0.15em;margin-bottom:8px;}
+.insight-list{display:flex;flex-direction:column;gap:6px;}
+.insight{
+  display:flex;align-items:flex-start;gap:8px;
+  font-family:var(--mono);font-size:10px;color:var(--text1);
+  line-height:1.5;
+}
+.insight-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.rec-list{display:flex;flex-direction:column;gap:6px;}
+.rec-item{
+  font-family:var(--mono);font-size:10px;
+  padding:6px 8px;border-radius:3px;
+  border-left:2px solid;line-height:1.5;
+}
+
+/* ── Vc regime indicator ── */
+.regime-bar{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--teal),var(--amber),var(--red));margin:8px 0;position:relative;}
+.regime-cursor{width:2px;height:12px;background:white;position:absolute;top:-3px;border-radius:1px;transition:left 0.3s;}
+.regime-labels{display:flex;justify-content:space-between;font-family:var(--mono);font-size:8px;color:var(--text2);}
+
+/* ── Responsive glows on updates ── */
+@keyframes kpi-update{0%{opacity:0.4;}50%{opacity:1;}100%{opacity:1;}}
+.kpi-flash{animation:kpi-update 0.4s ease;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ══ HEADER ══ -->
+<div class="header">
+  <div class="header-brand">
+    <div class="logo-box"><div class="logo-text">DT</div></div>
+    <div>
+      <div class="brand-name">DIGITAL TWIN</div>
+      <div class="brand-sub">CNC PARAMETER OPTIMISATION SYSTEM v2.4</div>
+    </div>
+  </div>
+  <div class="header-divider"></div>
+  <div class="machine-id">MACHINE&nbsp;<span>ST-30 / SPINDLE-A</span></div>
+  <div class="header-divider"></div>
+  <div class="machine-id">OPERATOR&nbsp;<span id="op-name">ENG_001</span></div>
+  <div class="header-divider"></div>
+  <div class="status-pill"><div class="pulse"></div><span style="color:var(--teal)">TWIN ONLINE</span></div>
+  <div class="header-machine">
+    <div class="clock" id="clk">--:--:--</div>
+  </div>
+</div>
+
+<!-- ══ KPI ROW ══ -->
+<div class="kpi-row">
+  <div class="kpi-card" id="kc-mrr">
+    <div class="kpi-label">MRR — MATERIAL REMOVAL</div>
+    <div><span class="kpi-value" id="kv-mrr">--</span><span class="kpi-unit">cm³/min</span></div>
+    <div class="kpi-sub" id="ks-mrr">Material removal rate</div>
+    <div class="kpi-bar-wrap"><div class="kpi-bar" id="kb-mrr" style="width:0%"></div></div>
+  </div>
+  <div class="kpi-card" id="kc-ra">
+    <div class="kpi-label">SURFACE Ra — ROUGHNESS</div>
+    <div><span class="kpi-value" id="kv-ra">--</span><span class="kpi-unit">μm</span></div>
+    <div class="kpi-sub" id="ks-ra">Surface finish class</div>
+    <div class="kpi-bar-wrap"><div class="kpi-bar" id="kb-ra" style="width:0%"></div></div>
+  </div>
+  <div class="kpi-card" id="kc-t">
+    <div class="kpi-label">TOOL LIFE — TAYLOR T</div>
+    <div><span class="kpi-value" id="kv-t">--</span><span class="kpi-unit">min</span></div>
+    <div class="kpi-sub" id="ks-t">Before regrind</div>
+    <div class="kpi-bar-wrap"><div class="kpi-bar" id="kb-t" style="width:0%"></div></div>
+  </div>
+  <div class="kpi-card" id="kc-p">
+    <div class="kpi-label">SPINDLE POWER</div>
+    <div><span class="kpi-value" id="kv-p">--</span><span class="kpi-unit">kW</span></div>
+    <div class="kpi-sub" id="ks-p">Machine capacity</div>
+    <div class="kpi-bar-wrap"><div class="kpi-bar" id="kb-p" style="width:0%"></div></div>
+  </div>
+  <div class="kpi-card" id="kc-dfx">
+    <div class="kpi-label">DfX SCORE — OVERALL</div>
+    <div><span class="kpi-value" id="kv-dfx">--</span><span class="kpi-unit">/ 100</span></div>
+    <div class="kpi-sub" id="ks-dfx">Design for Excellence</div>
+    <div class="kpi-bar-wrap"><div class="kpi-bar" id="kb-dfx" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- ══ MAIN GRID ══ -->
+<div class="main-grid">
+
+  <!-- Controls -->
+  <div class="panel">
+    <div class="panel-title">PROCESS PARAMETERS</div>
+
+    <!-- Material -->
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:0.15em;margin-bottom:8px;">WORKPIECE MATERIAL</div>
+    <div class="mat-grid" id="mat-grid"></div>
+
+    <!-- Regime bar -->
+    <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:0.1em;margin-bottom:4px;">Vc REGIME — Taylor C reference</div>
+      <div class="regime-bar"><div class="regime-cursor" id="regime-cursor"></div></div>
+      <div class="regime-labels"><span>CONSERVATIVE</span><span id="regime-label" style="color:var(--amber)">OPTIMAL</span><span>AGGRESSIVE</span></div>
+    </div>
+
+    <!-- Sliders -->
+    <div id="slider-area"></div>
+
+    <!-- Coolant toggle -->
+    <div class="toggle-row">
+      <span class="toggle-label">COOLANT</span>
+      <div class="toggle-switch on" id="coolant-sw" onclick="toggleCoolant()">
+        <div class="toggle-knob"></div>
+      </div>
+      <span class="toggle-state" id="coolant-state">WET CUTTING</span>
+      <span style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text2);" id="coolant-effect">↑ T ↑ DfS</span>
+    </div>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+      <button class="btn" onclick="resetParams()">↺ RESET</button>
+      <button class="btn primary" id="opt-btn" onclick="autoOptimize()">⚡ AUTO-OPTIMISE</button>
+    </div>
+  </div>
+
+  <!-- Twin Schematic -->
+  <div class="twin-panel">
+    <div class="panel-title">DIGITAL TWIN — REAL-TIME MODEL</div>
+    <div class="twin-svg-wrap">
+      <svg id="twin-svg" viewBox="0 0 560 280" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <!-- Operating point summary -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+      <div id="op-vc" style="text-align:center;"></div>
+      <div id="op-f" style="text-align:center;"></div>
+      <div id="op-ap" style="text-align:center;"></div>
+      <div id="op-r" style="text-align:center;"></div>
+    </div>
+  </div>
+
+  <!-- DfX Panel -->
+  <div class="panel">
+    <div class="panel-title">DfX ANALYSIS</div>
+    <div class="dfx-list" id="dfx-list"></div>
+    <div class="dfx-overall">
+      <div class="dfx-overall-label">OVERALL DfX SCORE</div>
+      <div class="dfx-overall-val" id="dfx-big">--</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-top:4px;" id="dfx-verdict">—</div>
+      <div class="optimised-badge" id="opt-badge">✓ PARAMETERS OPTIMISED</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CHARTS ══ -->
+<div class="chart-area">
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="setTab('taylor',this)">TAYLOR TOOL LIFE</button>
+    <button class="tab-btn" onclick="setTab('radar',this)">DfX RADAR</button>
+    <button class="tab-btn" onclick="setTab('pareto',this)">MRR vs Ra</button>
+    <button class="tab-btn" onclick="setTab('history',this)">PROCESS HISTORY</button>
+    <div style="margin-left:auto;align-self:center;font-family:var(--mono);font-size:9px;color:var(--text2);padding-right:16px;" id="chart-meta"></div>
+  </div>
+  <div class="tab-content active" id="tab-taylor"><canvas id="c-taylor" width="1100" height="220" style="width:100%;height:220px;"></canvas></div>
+  <div class="tab-content" id="tab-radar"><canvas id="c-radar" width="1100" height="280" style="width:100%;height:280px;"></canvas></div>
+  <div class="tab-content" id="tab-pareto"><canvas id="c-pareto" width="1100" height="260" style="width:100%;height:260px;"></canvas></div>
+  <div class="tab-content" id="tab-history">
+    <div class="history-grid" id="history-grid"></div>
+  </div>
+</div>
+
+<!-- ══ AGENT PANEL ══ -->
+<div class="agent-panel">
+  <div class="agent-header">
+    <div class="agent-icon">🤖</div>
+    <div class="agent-title">AUTONOMOUS LEARNING AGENT — REAL-TIME ANALYSIS</div>
+    <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text2);" id="agent-ts">Last updated: --</div>
+  </div>
+  <div class="agent-body">
+    <div class="agent-cell">
+      <div class="agent-cell-label">PROCESS INSIGHTS</div>
+      <div class="insight-list" id="insight-list"></div>
+    </div>
+    <div class="agent-cell">
+      <div class="agent-cell-label">RECOMMENDATIONS</div>
+      <div class="rec-list" id="rec-list"></div>
+    </div>
+    <div class="agent-cell">
+      <div class="agent-cell-label">OPTIMISATION STATUS</div>
+      <div id="opt-status"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /shell -->
+
+<script>
+// ══════════════════════════════════════════════
+//  DATA & CONSTANTS
+// ══════════════════════════════════════════════
+const MATERIALS = {
+  steel:     {name:"Alloy Steel",    C:200,n:0.25,Ks:2500,col:"#9e9e9e",iso:"P",maxVc:300},
+  aluminium: {name:"Aluminium 6061", C:600,n:0.33,Ks:700, col:"#64b5f6",iso:"N",maxVc:500},
+  titanium:  {name:"Ti-6Al-4V",      C:80, n:0.20,Ks:2000,col:"#f48fb1",iso:"S",maxVc:150},
+  castIron:  {name:"Cast Iron",      C:250,n:0.30,Ks:1100,col:"#bcaaa4",iso:"K",maxVc:250},
+  stainless: {name:"SS 316L",        C:150,n:0.22,Ks:2800,col:"#80cbc4",iso:"M",maxVc:200},
+};
+const DFX_DIMS = [
+  {key:"dfm",label:"DfM",full:"Manufacturability"},
+  {key:"dfq",label:"DfQ",full:"Quality / Finish"},
+  {key:"dfc",label:"DfC",full:"Cost Efficiency"},
+  {key:"dfs",label:"DfS",full:"Sustainability"},
+  {key:"dfr",label:"DfR",full:"Reliability"},
+];
+
+let state = {
+  mat:"steel", Vc:150, f:0.20, ap:1.0, r:0.8, coolant:true,
+  optimised:false, history:[], maxHist:40,
+};
+
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const r2=v=>Math.round(v*100)/100;
+const r1=v=>Math.round(v*10)/10;
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+// ══ Physics ══
+function toolLife(Vc,mat){return clamp(Math.pow(mat.C/Vc,1/mat.n),0.05,999);}
+function surfRa(f,r){return (f*f*1000)/(8*r);}
+function calcMRR(Vc,f,ap){return Vc*f*ap*Math.PI*0.1;}
+function calcPower(Vc,f,ap,mat){return (mat.Ks*f*ap*Vc)/60000;}
+
+function calcDfx(Vc,f,ap,r,mat,coolant){
+  const T=toolLife(Vc,mat);
+  const Ra=surfRa(f,r);
+  const MRR=calcMRR(Vc,f,ap);
+  const P=calcPower(Vc,f,ap,mat);
+  const vcR=Vc/mat.C;
+
+  const dfm=clamp(Math.round(92 - vcR*30 - (ap>2.5?18:0) - (f>0.4?12:0)),0,100);
+  const dfq=clamp(Math.round(100 - Ra*24),0,100);
+  const dfc=clamp(Math.round(Math.min(MRR,15)/15*70 + Math.min(T,60)/60*30),0,100);
+  const dfs=clamp(Math.round(96 - P*6.5 - (coolant?0:9)),0,100);
+  const dfr=clamp(Math.round(Math.min(T,80)/80*100),0,100);
+  const overall=Math.round((dfm+dfq+dfc+dfs+dfr)/5);
+
+  return {T,Ra,MRR,P,dfm,dfq,dfc,dfs,dfr,overall};
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  buildMaterialBtns();
+  buildSliders();
+  buildDfxList();
+  buildHistoryGrid();
+  clockTick();
+  setInterval(clockTick,1000);
+  update();
+});
+
+function clockTick(){
+  document.getElementById('clk').textContent=new Date().toLocaleTimeString('en-GB',{hour12:false});
+}
+
+// ══ Build Material Buttons ══
+function buildMaterialBtns(){
+  const g=document.getElementById('mat-grid');
+  g.innerHTML='';
+  Object.entries(MATERIALS).forEach(([k,m])=>{
+    const b=document.createElement('button');
+    b.className='mat-btn'+(state.mat===k?' active':'');
+    b.dataset.mat=k;
+    b.innerHTML=`<span class="mat-dot" style="background:${m.col}"></span>${m.name}<span class="mat-iso">[${m.iso}]</span>`;
+    b.onclick=()=>{state.mat=k;state.optimised=false;document.querySelectorAll('.mat-btn').forEach(x=>x.classList.remove('active'));b.classList.add('active');update();};
+    g.appendChild(b);
+  });
+}
+
+// ══ Build Sliders ══
+const SLIDERS=[
+  {id:'Vc',label:'Cutting Speed  Vс',unit:'m/min',min:30,max:500,step:5,hint:'Taylor reference: C'},
+  {id:'f', label:'Feed Rate  f',    unit:'mm/rev',min:0.05,max:0.50,step:0.01},
+  {id:'ap',label:'Depth of Cut  aₚ',unit:'mm',   min:0.1,max:3.0,step:0.1},
+  {id:'r', label:'Nose Radius  rε', unit:'mm',   min:0.2,max:1.6,step:0.2},
+];
+function buildSliders(){
+  const area=document.getElementById('slider-area');
+  area.innerHTML='';
+  SLIDERS.forEach(s=>{
+    area.innerHTML+=`
+    <div class="slider-group">
+      <div class="slider-header">
+        <span class="slider-label">${s.label}${s.hint?` <span style="color:var(--text2);font-size:8px;">(${s.hint})</span>`:''}</span>
+        <span><span class="kpi-value slider-val" id="sv-${s.id}">${state[s.id]}</span><span class="slider-unit">${s.unit}</span></span>
+      </div>
+      <input type="range" id="sl-${s.id}" min="${s.min}" max="${s.max}" step="${s.step}" value="${state[s.id]}"
+        oninput="onSlide('${s.id}',this.value)">
+      <div class="slider-ticks"><span class="slider-tick">${s.min}</span><span class="slider-tick">${s.max}</span></div>
+    </div>`;
+  });
+}
+function onSlide(id,v){
+  state[id]=parseFloat(v);
+  if(id==='Vc')state.optimised=false;
+  document.getElementById(`sv-${id}`).textContent=v;
+  updateSliderFill(id);
+  update();
+}
+function updateSliderFill(id){
+  const s=SLIDERS.find(x=>x.id===id);
+  const el=document.getElementById(`sl-${id}`);
+  const pct=((state[id]-s.min)/(s.max-s.min))*100;
+  el.style.setProperty('--pct',pct+'%');
+}
+function refreshSliders(){
+  SLIDERS.forEach(s=>{
+    const el=document.getElementById(`sl-${s.id}`);
+    if(el){el.value=state[s.id];document.getElementById(`sv-${s.id}`).textContent=state[s.id];updateSliderFill(s.id);}
+  });
+}
+
+// ══ Build DfX rows ══
+function buildDfxList(){
+  const d=document.getElementById('dfx-list');
+  d.innerHTML='';
+  DFX_DIMS.forEach(dim=>{
+    d.innerHTML+=`
+    <div class="dfx-item">
+      <div class="dfx-header">
+        <span><span class="dfx-name">${dim.label}</span><span class="dfx-full">${dim.full}</span></span>
+        <span class="dfx-score" id="dfxs-${dim.key}">--</span>
+      </div>
+      <div class="dfx-bar-wrap"><div class="dfx-bar" id="dfxb-${dim.key}" style="width:0%"></div></div>
+    </div>`;
+  });
+}
+
+// ══ History Grid ══
+const HIST_KEYS=['mrr','ra','t','p'];
+const HIST_META={mrr:{label:'MRR',unit:'cm³/min'},ra:{label:'SURFACE Ra',unit:'μm'},t:{label:'TOOL LIFE',unit:'min'},p:{label:'POWER',unit:'kW'}};
+function buildHistoryGrid(){
+  const g=document.getElementById('history-grid');
+  g.innerHTML='';
+  HIST_KEYS.forEach(k=>{
+    g.innerHTML+=`
+    <div class="spark-card">
+      <div class="spark-label">${HIST_META[k].label}</div>
+      <div class="spark-current" id="sh-val-${k}" style="color:var(--amber)">--<span style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-left:3px;">${HIST_META[k].unit}</span></div>
+      <canvas class="spark" id="spark-${k}" width="200" height="40"></canvas>
+    </div>`;
+  });
+}
+
+// ══════════════════════════════════════════════
+//  UPDATE CYCLE
+// ══════════════════════════════════════════════
+function update(){
+  const mat=MATERIALS[state.mat];
+  const d=calcDfx(state.Vc,state.f,state.ap,state.r,mat,state.coolant);
+
+  // Push history
+  state.history.push({mrr:r1(d.MRR),ra:r2(d.Ra),t:r1(d.T),p:r2(d.P),dfx:d.overall,ts:Date.now()});
+  if(state.history.length>state.maxHist)state.history.shift();
+
+  updateKPIs(d,mat);
+  updateDfxPanel(d);
+  updateRegime(mat);
+  drawTwin(d,mat);
+  drawActiveChart(d,mat);
+  updateAgent(d,mat);
+  updateOpPoints(d);
+  document.getElementById('chart-meta').textContent=`MAT: ${mat.name}  |  Vc=${state.Vc} m/min  f=${state.f} mm/r  aₚ=${state.ap} mm`;
+}
+
+// ══ KPIs ══
+function kpiColor(val,good,warn){return val>=good?'good':val>=warn?'warn':'bad';}
+function updateKPIs(d,mat){
+  setKPI('mrr',r1(d.MRR),'cm³/min',
+    d.MRR>10?'High throughput':d.MRR>4?'Moderate MRR':'Low throughput',
+    kpiColor(d.MRR,8,3), Math.min(d.MRR/15*100,100));
+  setKPI('ra',r2(d.Ra),'μm',
+    d.Ra<0.8?'Mirror N5':d.Ra<1.6?'Fine N6':d.Ra<3.2?'Medium N7':'Rough N8+',
+    d.Ra<1.6?'good':d.Ra<3.2?'warn':'bad', Math.min(d.Ra/6*100,100));
+  setKPI('t',r1(d.T),'min',
+    `Taylor n=${mat.n}, C=${mat.C}`,
+    kpiColor(d.T,30,10), Math.min(d.T/90*100,100));
+  setKPI('p',r2(d.P),'kW',
+    `${(d.P/15*100).toFixed(0)}% of 15 kW capacity`,
+    d.P<5?'good':d.P<10?'warn':'bad', Math.min(d.P/15*100,100));
+  setKPI('dfx',d.overall,'/ 100',
+    d.overall>=75?'Well optimised':d.overall>=55?'Room to improve':'Needs revision',
+    kpiColor(d.overall,70,50), d.overall);
+}
+function setKPI(id,val,unit,sub,cls,barPct){
+  const card=document.getElementById(`kc-${id}`);
+  card.className='kpi-card '+cls;
+  document.getElementById(`kv-${id}`).textContent=val;
+  document.getElementById(`ks-${id}`).textContent=sub;
+  const bar=document.getElementById(`kb-${id}`);
+  bar.style.width=barPct+'%';
+  bar.style.background=cls==='good'?'var(--teal)':cls==='warn'?'var(--amber)':'var(--red)';
+  card.classList.add('kpi-flash');
+  setTimeout(()=>card.classList.remove('kpi-flash'),400);
+}
+
+// ══ DfX ══
+function updateDfxPanel(d){
+  DFX_DIMS.forEach(dim=>{
+    const v=d[dim.key];
+    const cls=v>=70?'var(--teal)':v>=50?'var(--amber)':'var(--red)';
+    const el=document.getElementById(`dfxs-${dim.key}`);
+    if(el){el.textContent=v;el.style.color=cls;}
+    const bar=document.getElementById(`dfxb-${dim.key}`);
+    if(bar){bar.style.width=v+'%';bar.style.background=cls;}
+  });
+  const big=document.getElementById('dfx-big');
+  big.textContent=d.overall;
+  big.style.color=d.overall>=70?'var(--teal)':d.overall>=50?'var(--amber)':'var(--red)';
+  big.style.textShadow=d.overall>=70?'var(--glow-t)':d.overall>=50?'var(--glow-a)':'var(--glow-r)';
+  document.getElementById('dfx-verdict').textContent=
+    d.overall>=80?'EXCELLENT — DEPLOY PARAMETERS':
+    d.overall>=70?'GOOD — MINOR TUNING POSSIBLE':
+    d.overall>=55?'ACCEPTABLE — REVIEW RECOMMENDED':
+    d.overall>=40?'SUBOPTIMAL — OPTIMISATION NEEDED':'CRITICAL — DO NOT PROCEED';
+  document.getElementById('opt-badge').style.display=state.optimised?'block':'none';
+}
+
+// ══ Regime Bar ══
+function updateRegime(mat){
+  const r=state.Vc/mat.C;
+  const pct=Math.min(r/1.5*100,100);
+  document.getElementById('regime-cursor').style.left=pct+'%';
+  const lbl=document.getElementById('regime-label');
+  if(r<0.5){lbl.textContent='CONSERVATIVE';lbl.style.color='var(--teal)';}
+  else if(r<0.9){lbl.textContent='OPTIMAL ZONE';lbl.style.color='var(--amber)';}
+  else{lbl.textContent='AGGRESSIVE';lbl.style.color='var(--red)';}
+}
+
+// ══ Op Points ══
+function opPointHTML(label,val,unit){
+  return `<div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:0.1em;margin-bottom:3px;">${label}</div>
+          <div style="font-family:var(--display);font-size:14px;font-weight:600;color:var(--amber);">${val}<span style="font-size:9px;color:var(--text2);margin-left:2px;">${unit}</span></div>`;
+}
+function updateOpPoints(d){
+  document.getElementById('op-vc').innerHTML=opPointHTML('Vc',state.Vc,'m/min');
+  document.getElementById('op-f').innerHTML=opPointHTML('f',state.f,'mm/r');
+  document.getElementById('op-ap').innerHTML=opPointHTML('aₚ',state.ap,'mm');
+  document.getElementById('op-r').innerHTML=opPointHTML('rε',state.r,'mm');
+}
+
+// ══ Toggle coolant ══
+function toggleCoolant(){
+  state.coolant=!state.coolant;
+  const sw=document.getElementById('coolant-sw');
+  const st=document.getElementById('coolant-state');
+  const ef=document.getElementById('coolant-effect');
+  if(state.coolant){sw.classList.add('on');st.textContent='WET CUTTING';ef.textContent='↑ T ↑ DfS';}
+  else{sw.classList.remove('on');st.textContent='DRY CUTTING';ef.textContent='↓ T ↓ DfS';}
+  update();
+}
+
+// ══ Reset ══
+function resetParams(){
+  state.Vc=150;state.f=0.20;state.ap=1.0;state.r=0.8;state.coolant=true;state.optimised=false;
+  document.getElementById('coolant-sw').classList.add('on');
+  document.getElementById('coolant-state').textContent='WET CUTTING';
+  refreshSliders();update();
+}
+
+// ══ Auto-Optimise ══
+function autoOptimize(){
+  const btn=document.getElementById('opt-btn');
+  btn.textContent='SEARCHING…';btn.disabled=true;
+  setTimeout(()=>{
+    const mat=MATERIALS[state.mat];
+    let best={score:-1};
+    for(let v=50;v<=mat.C*0.85;v+=8){
+      for(let f=0.07;f<=0.38;f+=0.03){
+        for(let ap=0.4;ap<=2.4;ap+=0.2){
+          for(let r=0.4;r<=1.6;r+=0.4){
+            const d=calcDfx(v,parseFloat(f.toFixed(2)),parseFloat(ap.toFixed(1)),r,mat,state.coolant);
+            if(d.overall>best.score)best={score:d.overall,v,f:parseFloat(f.toFixed(2)),ap:parseFloat(ap.toFixed(1)),r};
+          }
+        }
+      }
+    }
+    state.Vc=Math.round(best.v/5)*5;state.f=best.f;state.ap=best.ap;state.r=best.r;
+    state.optimised=true;
+    refreshSliders();
+    btn.textContent='⚡ AUTO-OPTIMISE';btn.disabled=false;
+    btn.classList.add('active-flash');setTimeout(()=>btn.classList.remove('active-flash'),500);
+    update();
+  },60);
+}
+
+// ══ Tab switching ══
+function setTab(id,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  const mat=MATERIALS[state.mat];
+  const d=calcDfx(state.Vc,state.f,state.ap,state.r,mat,state.coolant);
+  drawChart(id,d,mat);
+}
+
+function drawActiveChart(d,mat){
+  const tabs=['taylor','radar','pareto','history'];
+  const active=tabs.find(t=>document.getElementById('tab-'+t)?.classList.contains('active'))||'taylor';
+  drawChart(active,d,mat);
+}
+
+function drawChart(id,d,mat){
+  if(id==='taylor')drawTaylor(d,mat);
+  else if(id==='radar')drawRadar(d);
+  else if(id==='pareto')drawPareto(d,mat);
+  else if(id==='history')drawHistory(d);
+}
+
+// ══════════════════════════════════════════════
+//  DIGITAL TWIN SVG
+// ══════════════════════════════════════════════
+function drawTwin(d,mat){
+  const svg=document.getElementById('twin-svg');
+  const W=560,H=280;
+  const cx=H/2; // centre y
+  const workR=65, workL=340;
+  const workX=110, workY=cx-workR;
+  const toolTipX=workX+workL;
+  const chipRad=Math.min(state.ap*22,55);
+  const coolantOn=state.coolant;
+  const cutColor=mat.col;
+
+  svg.innerHTML=`
+  <defs>
+    <filter id="glow-a"><feGaussianBlur stdDeviation="2.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="glow-b"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6Z" fill="#4a6080"/></marker>
+    <marker id="arr-a" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6Z" fill="${'#f0a500'}"/></marker>
+    <marker id="arr-t" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6Z" fill="${'#00c896'}"/></marker>
+    <linearGradient id="work-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${cutColor}" stop-opacity="0.35"/>
+      <stop offset="50%" stop-color="${cutColor}" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="${cutColor}" stop-opacity="0.35"/>
+    </linearGradient>
+    <linearGradient id="bed-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e2a40"/>
+      <stop offset="100%" stop-color="#0d1420"/>
+    </linearGradient>
+    <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="8" stroke="${cutColor}" stroke-width="0.5" opacity="0.2"/>
+    </pattern>
+  </defs>
+
+  <!-- Machine bed -->
+  <rect x="20" y="${H-36}" width="${W-40}" height="22" rx="4" fill="url(#bed-grad)" stroke="#1e3050" stroke-width="1"/>
+  <!-- Bed ribs -->
+  ${[80,160,240,320,400,480].map(x=>`<rect x="${x}" y="${H-36}" width="6" height="10" fill="#111c2d" opacity="0.6"/>`).join('')}
+
+  <!-- Headstock body -->
+  <rect x="18" y="${cx-85}" width="80" height="170" rx="6" fill="#111c2d" stroke="#1e3050" stroke-width="1.5"/>
+  <!-- Headstock face -->
+  <rect x="88" y="${cx-70}" width="16" height="140" rx="3" fill="#0d1a2a" stroke="#1e3050" stroke-width="1"/>
+  <!-- Chuck body -->
+  <circle cx="96" cy="${cx}" r="52" fill="#0d1420" stroke="#1e3050" stroke-width="1.5"/>
+  <circle cx="96" cy="${cx}" r="42" fill="#111c2d" stroke="#253040" stroke-width="1"/>
+  <!-- Chuck jaws (4) -->
+  ${[0,90,180,270].map(a=>{
+    const rad=a*Math.PI/180;
+    const jx=96+Math.cos(rad)*34, jy=cx+Math.sin(rad)*34;
+    return `<rect x="${jx-5}" y="${jy-10}" width="10" height="20" rx="2" fill="#1e3050" stroke="#304060" stroke-width="0.75" transform="rotate(${a},${jx},${jy})"/>`;
+  }).join('')}
+  <!-- Spindle hole -->
+  <circle cx="96" cy="${cx}" r="14" fill="#0a0e14" stroke="#253040" stroke-width="1"/>
+
+  <!-- Workpiece cylinder -->
+  <rect x="${workX}" y="${workY}" width="${workL}" height="${workR*2}" rx="2"
+    fill="url(#work-grad)" stroke="${cutColor}" stroke-width="1.5" stroke-opacity="0.7"/>
+  <!-- Hatch -->
+  <rect x="${workX}" y="${workY}" width="${workL}" height="${workR*2}" rx="2" fill="url(#hatch)"/>
+  <!-- Highlight lines -->
+  ${[-22,-8,0,8,22].map(dy=>`<line x1="${workX}" y1="${cx+dy}" x2="${workX+workL}" y2="${cx+dy}" stroke="${cutColor}" stroke-width="0.3" opacity="0.2"/>`).join('')}
+
+  <!-- Machined zone (depth of cut) -->
+  <rect x="${workX}" y="${workY}" width="${Math.round(state.ap/3*workL*0.18+8)}" height="${workR*2}" rx="1"
+    fill="#f0a500" fill-opacity="0.06" stroke="#f0a500" stroke-width="0.75" stroke-dasharray="3,2"/>
+
+  <!-- Centre line -->
+  <line x1="18" y1="${cx}" x2="${W-20}" y2="${cx}" stroke="#253040" stroke-width="0.5" stroke-dasharray="8,5"/>
+
+  <!-- Tailstock (right) -->
+  <rect x="${W-70}" y="${cx-55}" width="52" height="110" rx="5" fill="#0d1420" stroke="#1e3050" stroke-width="1.5"/>
+  <rect x="${W-70}" y="${cx-20}" width="10" height="40" rx="2" fill="#111c2d" stroke="#1e3050" stroke-width="1"/>
+  <!-- Live centre -->
+  <polygon points="${W-18},${cx} ${W-36},${cx-10} ${W-36},${cx+10}" fill="#1e3050" stroke="#304060" stroke-width="0.75"/>
+
+  <!-- Tool post body -->
+  <rect x="${toolTipX+5}" y="${cx-30}" width="75" height="30" rx="3" fill="#111c2d" stroke="#1e3050" stroke-width="1.25"/>
+  <!-- Bolts -->
+  ${[0,1,2].map(i=>`<circle cx="${toolTipX+20+i*20}" cy="${cx-15}" r="3.5" fill="#0a0e14" stroke="#253040" stroke-width="0.75"/>`).join('')}
+
+  <!-- Insert (cutting tip) -->
+  <polygon points="${toolTipX+5},${cx-30} ${toolTipX+5},${cx} ${toolTipX-10},${cx-15}"
+    fill="#f0a500" fill-opacity="0.85" stroke="#ffcc44" stroke-width="1" filter="url(#glow-a)"/>
+  <!-- Nose radius arc -->
+  <circle cx="${toolTipX-10}" cy="${cx-15}" r="${state.r*5}" fill="none" stroke="#f0a500" stroke-width="0.75" opacity="0.5"/>
+
+  <!-- Chip -->
+  <path d="M ${toolTipX-10},${cx-30}
+    Q ${toolTipX-10-chipRad*0.6},${cx-30-chipRad*0.7}
+      ${toolTipX-10-chipRad*1.1},${cx-30-chipRad*1.2}
+    Q ${toolTipX-10-chipRad*1.5},${cx-30-chipRad*1.7}
+      ${toolTipX-10-chipRad*1.3},${cx-30-chipRad*2.2}"
+    fill="none" stroke="#f0a500" stroke-width="${Math.max(1,state.ap*0.9)}" stroke-linecap="round" opacity="0.7" filter="url(#glow-a)"/>
+
+  <!-- Surface roughness wave (zoomed bottom) -->
+  <path d="M ${workX+8} ${workY+workR*2+8} ${
+    Array.from({length:28},(_,i)=>{
+      const x=workX+8+i*12;
+      const y=workY+workR*2+8+Math.sin(i*1.8)*Math.min(d.Ra*2.5,10);
+      return `L ${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(' ')
+  }" fill="none" stroke="${d.Ra<1.6?'#00c896':d.Ra<3.2?'#f0a500':'#ff4560'}" stroke-width="1.2"/>
+  <text x="${workX+8}" y="${workY+workR*2+24}" font-family="Share Tech Mono,monospace" font-size="9"
+    fill="${d.Ra<1.6?'#00c896':d.Ra<3.2?'#f0a500':'#ff4560'}">Ra ${r2(d.Ra)} μm</text>
+
+  <!-- Coolant stream -->
+  ${coolantOn?`
+  <path d="M ${W-90},${cx-60} Q ${toolTipX+50},${cx-50} ${toolTipX+15},${cx-20}"
+    fill="none" stroke="#00c896" stroke-width="2" stroke-dasharray="5,3" opacity="0.7"/>
+  <path d="M ${W-80},${cx-50} Q ${toolTipX+55},${cx-40} ${toolTipX+12},${cx-12}"
+    fill="none" stroke="#00c896" stroke-width="1.2" stroke-dasharray="4,3" opacity="0.45"/>
+  <text x="${W-110}" y="${cx-65}" font-family="Share Tech Mono,monospace" font-size="9" fill="#00c896">COOLANT</text>
+  `:''}
+
+  <!-- Vc arrow (rotational) -->
+  <path d="M ${workX+workL/2-30},${workY-18} Q ${workX+workL/2},${workY-28} ${workX+workL/2+30},${workY-18}"
+    fill="none" stroke="#00c896" stroke-width="1.5" marker-end="url(#arr-t)" filter="url(#glow-b)"/>
+  <text x="${workX+workL/2-18}" y="${workY-30}" font-family="Share Tech Mono,monospace" font-size="10" fill="#00c896">Vс = ${state.Vc} m/min</text>
+
+  <!-- Feed arrow -->
+  <line x1="${toolTipX+80}" y1="${cx+45}" x2="${toolTipX-5}" y2="${cx+45}"
+    stroke="#4a6080" stroke-width="1.2" marker-end="url(#arr)"/>
+  <text x="${toolTipX+84}" y="${cx+49}" font-family="Share Tech Mono,monospace" font-size="9" fill="#4a6080">f = ${state.f} mm/r</text>
+
+  <!-- Depth of cut bracket -->
+  <line x1="${workX+15}" y1="${workY}" x2="${workX+15}" y2="${workY+workR*2}" stroke="#f0a500" stroke-width="0.75"/>
+  <line x1="${workX+10}" y1="${workY}" x2="${workX+20}" y2="${workY}" stroke="#f0a500" stroke-width="0.75"/>
+  <line x1="${workX+10}" y1="${workY+workR*2}" x2="${workX+20}" y2="${workY+workR*2}" stroke="#f0a500" stroke-width="0.75"/>
+  <text x="${workX+24}" y="${cx+4}" font-family="Share Tech Mono,monospace" font-size="9" fill="#f0a500">aₚ ${state.ap} mm</text>
+
+  <!-- Material label -->
+  <text x="${workX+workL/2}" y="${workY-8}" font-family="Share Tech Mono,monospace" font-size="9"
+    fill="${cutColor}" text-anchor="middle" opacity="0.8">${mat.name} [ISO ${mat.iso}]</text>
+
+  <!-- Tool life bar (bottom right) -->
+  <rect x="${W-130}" y="${H-28}" width="110" height="6" rx="3" fill="#172035" stroke="#1e3050" stroke-width="0.5"/>
+  <rect x="${W-130}" y="${H-28}" width="${Math.min(d.T/90*110,110)}" height="6" rx="3"
+    fill="${d.T>30?'#00c896':d.T>10?'#f0a500':'#ff4560'}"
+    filter="${d.T>30?'url(#glow-b)':''}"/>
+  <text x="${W-130}" y="${H-32}" font-family="Share Tech Mono,monospace" font-size="9" fill="#4a6080">TOOL LIFE</text>
+  <text x="${W-18}" y="${H-32}" font-family="Share Tech Mono,monospace" font-size="9"
+    fill="${d.T>30?'#00c896':d.T>10?'#f0a500':'#ff4560'}" text-anchor="end">T=${r1(d.T)} min</text>
+  `;
+}
+
+// ══════════════════════════════════════════════
+//  CHARTS  (Canvas 2D)
+// ══════════════════════════════════════════════
+function canvasCtx(id){
+  const c=document.getElementById(id);
+  const dpr=window.devicePixelRatio||1;
+  const rect=c.getBoundingClientRect();
+  c.width=rect.width*dpr;c.height=rect.height*dpr;
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+  return {ctx,W:rect.width,H:rect.height};
+}
+const CLR={bg0:'#080c10',bg1:'#0d1420',bg2:'#111c2d',bg3:'#172035',border:'rgba(64,160,255,0.1)',
+  amber:'#f0a500',amber2:'#ffcc44',teal:'#00c896',red:'#ff4560',blue:'#40a0ff',muted:'#4a6080',
+  text0:'#e8f0ff',text1:'#8ba8cc',text2:'#4a6080'};
+
+// ── Taylor ──
+function drawTaylor(d,mat){
+  try{const{ctx,W,H}=canvasCtx('c-taylor');
+  const pad={l:55,r:30,t:20,b:35};
+  const cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=CLR.bg0;ctx.fillRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle=CLR.border;ctx.lineWidth=0.5;
+  for(let i=0;i<=5;i++){const y=pad.t+cH/5*i;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cW,y);ctx.stroke();}
+  for(let i=0;i<=8;i++){const x=pad.l+cW/8*i;ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+cH);ctx.stroke();}
+
+  const vcMin=20,vcMax=mat.maxVc;
+  const tMax=Math.min(toolLife(vcMin,mat),200);
+  const pts=Array.from({length:80},(_,i)=>{const v=vcMin+(vcMax-vcMin)/79*i;return{v,T:toolLife(v,mat)};});
+  const xS=v=>(v-vcMin)/(vcMax-vcMin)*cW+pad.l;
+  const yS=T=>cH-(Math.min(T,tMax)/tMax)*cH+pad.t;
+
+  // Curve fill
+  ctx.beginPath();ctx.moveTo(xS(pts[0].v),yS(pts[0].T));
+  pts.forEach(p=>ctx.lineTo(xS(p.v),yS(p.T)));
+  ctx.lineTo(xS(pts[pts.length-1].v),pad.t+cH);ctx.lineTo(xS(pts[0].v),pad.t+cH);ctx.closePath();
+  const grad=ctx.createLinearGradient(0,pad.t,0,pad.t+cH);
+  grad.addColorStop(0,'rgba(0,200,150,0.15)');grad.addColorStop(1,'rgba(0,200,150,0)');
+  ctx.fillStyle=grad;ctx.fill();
+
+  // Curve line
+  ctx.beginPath();ctx.strokeStyle=CLR.teal;ctx.lineWidth=2;ctx.moveTo(xS(pts[0].v),yS(pts[0].T));
+  pts.forEach(p=>ctx.lineTo(xS(p.v),yS(p.T)));ctx.stroke();
+
+  // Optimal zone band
+  const optVcMin=mat.C*0.5,optVcMax=mat.C*0.88;
+  ctx.fillStyle='rgba(240,165,0,0.05)';
+  ctx.fillRect(xS(optVcMin),pad.t,xS(optVcMax)-xS(optVcMin),cH);
+  ctx.strokeStyle='rgba(240,165,0,0.2)';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(xS(optVcMin),pad.t);ctx.lineTo(xS(optVcMin),pad.t+cH);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(xS(optVcMax),pad.t);ctx.lineTo(xS(optVcMax),pad.t+cH);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Current Vc line
+  const cx2=xS(state.Vc),cy2=yS(d.T);
+  ctx.strokeStyle=CLR.amber;ctx.lineWidth=1.2;ctx.setLineDash([4,3]);
+  ctx.beginPath();ctx.moveTo(cx2,pad.t);ctx.lineTo(cx2,pad.t+cH);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(pad.l,cy2);ctx.lineTo(pad.l+cW,cy2);ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Point
+  ctx.beginPath();ctx.arc(cx2,cy2,6,0,Math.PI*2);
+  ctx.fillStyle=CLR.amber;ctx.fill();
+  ctx.strokeStyle=CLR.bg0;ctx.lineWidth=2;ctx.stroke();
+
+  // Labels
+  ctx.fillStyle=CLR.amber2;ctx.font=`bold 11px 'Share Tech Mono',monospace`;
+  ctx.fillText(`Vc=${state.Vc}`,cx2+8,cy2-8);
+  ctx.fillText(`T=${r1(d.T)} min`,cx2+8,cy2+14);
+
+  // Axes
+  ctx.fillStyle=CLR.text2;ctx.font=`10px 'Share Tech Mono',monospace`;
+  pts.forEach((_,i)=>{if(i%10===0||i===79){const v=pts[i].v;ctx.fillText(Math.round(v),xS(v)-12,pad.t+cH+16);}});
+  ctx.fillStyle=CLR.text2;
+  for(let i=0;i<=5;i++){const T=tMax/5*(5-i);const y=pad.t+cH/5*i;ctx.fillText(Math.round(T),4,y+4);}
+  ctx.save();ctx.translate(13,pad.t+cH/2);ctx.rotate(-Math.PI/2);
+  ctx.fillStyle=CLR.text1;ctx.font=`10px 'Share Tech Mono',monospace`;ctx.fillText('T (min)',-30,0);ctx.restore();
+  ctx.fillStyle=CLR.text1;ctx.font=`10px 'Share Tech Mono',monospace`;
+  ctx.fillText('Vс (m/min)',pad.l+cW/2-30,H-4);
+
+  // Taylor equation label
+  ctx.fillStyle=CLR.teal;ctx.font=`10px 'Share Tech Mono',monospace`;
+  ctx.fillText(`T = (C/Vc)^(1/n)    C=${mat.C}  n=${mat.n}`,pad.l+6,pad.t+16);
+  }catch(e){}
+}
+
+// ── Radar ──
+function drawRadar(d){
+  try{const{ctx,W,H}=canvasCtx('c-radar');
+  ctx.clearRect(0,0,W,H);ctx.fillStyle=CLR.bg0;ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H/2,maxR=Math.min(W,H)/2-55;
+  const scores=[d.dfm,d.dfq,d.dfc,d.dfs,d.dfr];
+  const labels=['DfM\nManufacturability','DfQ\nQuality','DfC\nCost','DfS\nSustainability','DfR\nReliability'];
+  const N=5;
+  const angle=i=>Math.PI/2+i*2*Math.PI/N*-1;
+
+  // Grid rings
+  [0.2,0.4,0.6,0.8,1.0].forEach((r,ri)=>{
+    ctx.beginPath();
+    for(let i=0;i<N;i++){const a=angle(i);const rr=r*maxR;
+      i===0?ctx.moveTo(cx+Math.cos(a)*rr,cy-Math.sin(a)*rr):ctx.lineTo(cx+Math.cos(a)*rr,cy-Math.sin(a)*rr);}
+    ctx.closePath();ctx.strokeStyle=ri===4?'rgba(64,160,255,0.15)':CLR.border;ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle=CLR.text2;ctx.font=`9px 'Share Tech Mono',monospace`;
+    ctx.fillText(r*100,cx+3,cy-r*maxR+4);
+  });
+
+  // Spokes
+  for(let i=0;i<N;i++){const a=angle(i);ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.cos(a)*maxR,cy-Math.sin(a)*maxR);ctx.strokeStyle=CLR.border;ctx.lineWidth=0.75;ctx.stroke();}
+
+  // Fill area
+  ctx.beginPath();
+  scores.forEach((s,i)=>{const a=angle(i);const r=s/100*maxR;
+    i===0?ctx.moveTo(cx+Math.cos(a)*r,cy-Math.sin(a)*r):ctx.lineTo(cx+Math.cos(a)*r,cy-Math.sin(a)*r);});
+  ctx.closePath();
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,maxR);
+  g.addColorStop(0,'rgba(240,165,0,0.25)');g.addColorStop(1,'rgba(240,165,0,0.05)');
+  ctx.fillStyle=g;ctx.fill();
+  ctx.strokeStyle=CLR.amber2;ctx.lineWidth=2;ctx.stroke();
+
+  // Points
+  scores.forEach((s,i)=>{const a=angle(i);const r=s/100*maxR;
+    ctx.beginPath();ctx.arc(cx+Math.cos(a)*r,cy-Math.sin(a)*r,5,0,Math.PI*2);
+    ctx.fillStyle=CLR.amber2;ctx.fill();ctx.strokeStyle=CLR.bg0;ctx.lineWidth=1.5;ctx.stroke();});
+
+  // Labels
+  scores.forEach((s,i)=>{const a=angle(i);const lr=maxR+36;const lx=cx+Math.cos(a)*lr,ly=cy-Math.sin(a)*lr;
+    ctx.fillStyle=CLR.text1;ctx.font=`bold 11px 'Share Tech Mono',monospace`;ctx.textAlign='center';
+    const parts=labels[i].split('\n');
+    ctx.fillText(parts[0],lx,ly-(parts.length>1?7:0));
+    if(parts[1]){ctx.fillStyle=CLR.text2;ctx.font=`9px 'Share Tech Mono',monospace`;ctx.fillText(parts[1],lx,ly+10);}
+    ctx.fillStyle=s>=70?CLR.teal:s>=50?CLR.amber:CLR.red;
+    ctx.font=`bold 12px 'Orbitron',monospace`;ctx.fillText(s,lx,ly+(parts.length>1?24:14));
+  });
+  ctx.textAlign='left';
+  }catch(e){}
+}
+
+// ── Pareto ──
+function drawPareto(d,mat){
+  try{const{ctx,W,H}=canvasCtx('c-pareto');
+  ctx.clearRect(0,0,W,H);ctx.fillStyle=CLR.bg0;ctx.fillRect(0,0,W,H);
+  const pad={l:60,r:30,t:20,b:40};
+  const cW=W-pad.l-pad.r,cH=H-pad.t-pad.b;
+
+  // scatter data
+  const pts=Array.from({length:60},()=>{
+    const v=mat.C*0.15+Math.random()*mat.C;
+    const f2=0.05+Math.random()*0.44;
+    const a=0.2+Math.random()*2.8;
+    return{mrr:r1(calcMRR(v,f2,a)),ra:r2(surfRa(f2,state.r)),t:r1(toolLife(v,mat))};
+  });
+  const mrrMax=Math.max(...pts.map(p=>p.mrr),d.MRR)*1.1;
+  const raMax=Math.max(...pts.map(p=>p.ra),d.Ra)*1.1;
+  const xS=v=>pad.l+v/mrrMax*cW,yS=r=>pad.t+cH-(r/raMax*cH);
+
+  // Grid
+  ctx.strokeStyle=CLR.border;ctx.lineWidth=0.5;
+  for(let i=0;i<=5;i++){const y=pad.t+cH/5*i;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cW,y);ctx.stroke();}
+  for(let i=0;i<=6;i++){const x=pad.l+cW/6*i;ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+cH);ctx.stroke();}
+
+  // Quadrant labels
+  ctx.fillStyle='rgba(0,200,150,0.06)';ctx.fillRect(pad.l+cW/2,pad.t,cW/2,cH/2);
+  ctx.fillStyle=CLR.text2;ctx.font=`9px 'Share Tech Mono',monospace`;
+  ctx.fillText('HIGH MRR, LOW Ra  ✓',pad.l+cW/2+8,pad.t+14);
+
+  // Scatter
+  pts.forEach(p=>{
+    const alpha=0.25+p.t/90*0.5;
+    ctx.beginPath();ctx.arc(xS(p.mrr),yS(p.ra),4,0,Math.PI*2);
+    ctx.fillStyle=`rgba(74,96,128,${alpha})`;ctx.fill();});
+
+  // Current point
+  const cpx=xS(d.MRR),cpy=yS(d.Ra);
+  ctx.beginPath();ctx.arc(cpx,cpy,8,0,Math.PI*2);
+  const g=ctx.createRadialGradient(cpx,cpy,0,cpx,cpy,8);
+  g.addColorStop(0,CLR.amber2);g.addColorStop(1,CLR.amber);
+  ctx.fillStyle=g;ctx.fill();ctx.strokeStyle=CLR.bg0;ctx.lineWidth=2;ctx.stroke();
+
+  ctx.fillStyle=CLR.amber2;ctx.font=`bold 11px 'Share Tech Mono',monospace`;
+  ctx.fillText(`MRR=${d.MRR.toFixed(1)}  Ra=${d.Ra.toFixed(2)}`,cpx+12,cpy-6);
+
+  // Axes
+  ctx.fillStyle=CLR.text2;ctx.font=`10px 'Share Tech Mono',monospace`;
+  for(let i=0;i<=6;i++){const v=mrrMax/6*i;ctx.fillText(r1(v),pad.l+cW/6*i-8,pad.t+cH+16);}
+  for(let i=0;i<=5;i++){const v=raMax/5*(5-i);ctx.fillText(r2(v),4,pad.t+cH/5*i+4);}
+  ctx.fillStyle=CLR.text1;ctx.font=`10px 'Share Tech Mono',monospace`;
+  ctx.fillText('MRR (cm³/min)',pad.l+cW/2-40,H-4);
+  ctx.save();ctx.translate(13,pad.t+cH/2);ctx.rotate(-Math.PI/2);ctx.fillText('Ra (μm)',-20,0);ctx.restore();
+
+  // Legend
+  ctx.beginPath();ctx.arc(pad.l+8,pad.t+cH-12,4,0,Math.PI*2);ctx.fillStyle='rgba(74,96,128,0.6)';ctx.fill();
+  ctx.fillStyle=CLR.text2;ctx.font=`9px 'Share Tech Mono',monospace`;ctx.fillText('Process space',pad.l+16,pad.t+cH-8);
+  ctx.beginPath();ctx.arc(pad.l+120,pad.t+cH-12,6,0,Math.PI*2);ctx.fillStyle=CLR.amber;ctx.fill();
+  ctx.fillText('Current point',pad.l+130,pad.t+cH-8);
+  }catch(e){}
+}
+
+// ── History ──
+function drawHistory(d){
+  HIST_KEYS.forEach(k=>{
+    const vals=state.history.map(h=>h[k]);
+    const cur=vals[vals.length-1];
+    const el=document.getElementById(`sh-val-${k}`);
+    if(el)el.innerHTML=`<span style="font-size:15px;">${cur}</span><span style="font-family:var(--mono);font-size:9px;color:var(--text2);margin-left:3px;">${HIST_META[k].unit}</span>`;
+
+    try{const c=document.getElementById(`spark-${k}`);
+    const dpr=window.devicePixelRatio||1;
+    const rect=c.getBoundingClientRect();
+    c.width=rect.width*dpr;c.height=rect.height*dpr;
+    const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+    const W=rect.width,H=rect.height;
+    ctx.clearRect(0,0,W,H);
+    if(vals.length<2)return;
+    const mn=Math.min(...vals),mx=Math.max(...vals);
+    const rng=mx-mn||1;
+    const xS=i=>i/(vals.length-1)*(W-4)+2;
+    const yS=v=>H-4-(v-mn)/rng*(H-8)+2;
+    ctx.beginPath();ctx.moveTo(xS(0),yS(vals[0]));
+    vals.forEach((v,i)=>ctx.lineTo(xS(i),yS(v)));
+    ctx.strokeStyle=CLR.amber;ctx.lineWidth=1.5;ctx.stroke();
+    ctx.lineTo(xS(vals.length-1),H);ctx.lineTo(xS(0),H);ctx.closePath();
+    const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'rgba(240,165,0,0.2)');g.addColorStop(1,'rgba(240,165,0,0)');
+    ctx.fillStyle=g;ctx.fill();
+    }catch(e){}
+  });
+}
+
+// ══════════════════════════════════════════════
+//  AGENT INTELLIGENCE
+// ══════════════════════════════════════════════
+function updateAgent(d,mat){
+  const now=new Date().toLocaleTimeString('en-GB');
+  document.getElementById('agent-ts').textContent=`Updated: ${now}`;
+
+  const insights=[];
+  const recs=[];
+
+  // Tool life analysis
+  if(d.T<5)insights.push({col:'#ff4560',msg:`CRITICAL: Tool life T=${r1(d.T)} min — imminent failure risk. Reduce Vc immediately.`});
+  else if(d.T<15)insights.push({col:'#f0a500',msg:`Tool life marginal at T=${r1(d.T)} min. Consider reducing Vc by 15–20%.`});
+  else insights.push({col:'#00c896',msg:`Tool life T=${r1(d.T)} min — adequate for production run.`});
+
+  // Surface finish
+  if(d.Ra>3.2)insights.push({col:'#ff4560',msg:`Ra ${r2(d.Ra)} μm exceeds N7 tolerance. Increase nose radius rε or reduce feed.`});
+  else if(d.Ra>1.6)insights.push({col:'#f0a500',msg:`Ra ${r2(d.Ra)} μm — medium finish (N7). For fine finish, reduce f below 0.15 mm/r.`});
+  else insights.push({col:'#00c896',msg:`Surface Ra ${r2(d.Ra)} μm — fine finish achieved (N6 or better).`});
+
+  // Power
+  if(d.P>12)insights.push({col:'#ff4560',msg:`Spindle power ${r2(d.P)} kW approaching machine limit (15 kW). Risk of overload.`});
+  else if(d.P>8)insights.push({col:'#f0a500',msg:`Power consumption ${r2(d.P)} kW — moderate load. Monitor spindle temperature.`});
+
+  // Regime
+  const vcR=state.Vc/mat.C;
+  if(vcR>0.9)insights.push({col:'#ff4560',msg:`Vc = ${(vcR*100).toFixed(0)}% of Taylor C — aggressive zone. Accelerated tool wear expected.`});
+  else if(vcR<0.45)insights.push({col:'#4a6080',msg:`Vc conservative at ${(vcR*100).toFixed(0)}% of C. MRR could be improved by increasing speed.`});
+
+  // Coolant
+  if(!state.coolant&&(state.mat==='titanium'||state.mat==='stainless'))
+    insights.push({col:'#ff4560',msg:`Dry cutting not recommended for ${mat.name}. Risk of BUE and thermal damage.`});
+
+  // Recommendations
+  if(d.Ra>2.0)recs.push({col:'#f0a500',msg:`↑ Nose radius rε to ${Math.min(state.r+0.4,1.6).toFixed(1)} mm → reduces Ra by ~${Math.round((1-(state.r/(state.r+0.4))**2)*100*0.5)}%`});
+  if(d.T<20&&state.Vc>60)recs.push({col:'#f0a500',msg:`↓ Vc to ${Math.max(state.Vc-25,50)} m/min → tool life improvement ~${Math.round((toolLife(state.Vc-25,mat)-d.T)/d.T*100)}%`});
+  if(d.MRR<3)recs.push({col:'#40a0ff',msg:`↑ Depth aₚ to ${Math.min(state.ap+0.5,3).toFixed(1)} mm for MRR gain while maintaining surface quality`});
+  if(d.overall>=75)recs.push({col:'#00c896',msg:`Parameters within optimal window. Consider running production batch.`});
+  if(!state.coolant)recs.push({col:'#40a0ff',msg:`Enable coolant: expected +15–30% tool life, −5°C workpiece temp, ↑ DfS score`});
+
+  // Render
+  const iList=document.getElementById('insight-list');
+  iList.innerHTML=insights.slice(0,4).map(i=>
+    `<div class="insight"><span class="insight-dot" style="background:${i.col}"></span>${i.msg}</div>`).join('');
+
+  const rList=document.getElementById('rec-list');
+  rList.innerHTML=recs.slice(0,4).map(r=>
+    `<div class="rec-item" style="border-color:${r.col};background:${r.col}11;color:#8ba8cc;">${r.msg}</div>`).join('');
+
+  // Optimisation status
+  const os=document.getElementById('opt-status');
+  const overall=d.overall;
+  os.innerHTML=`
+    <div style="text-align:center;margin-bottom:12px;">
+      <div style="font-family:'Orbitron',monospace;font-size:36px;font-weight:700;
+        color:${overall>=70?'#00c896':overall>=50?'#f0a500':'#ff4560'};
+        text-shadow:0 0 15px ${overall>=70?'rgba(0,200,150,0.5)':overall>=50?'rgba(240,165,0,0.5)':'rgba(255,69,96,0.5)'};">
+        ${overall}<span style="font-size:14px;opacity:0.5;"> / 100</span></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:${overall>=70?'#00c896':overall>=50?'#f0a500':'#ff4560'};margin-top:4px;">
+        ${overall>=80?'EXCELLENT — DEPLOY':overall>=70?'GOOD — MINOR TUNE':overall>=55?'ACCEPTABLE — REVIEW':'CRITICAL — REVISE'}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text2);">
+      <div>MRR: <span style="color:${d.MRR>6?'#00c896':'#f0a500'}">${r1(d.MRR)} cm³/min</span></div>
+      <div>Ra: <span style="color:${d.Ra<1.6?'#00c896':d.Ra<3.2?'#f0a500':'#ff4560'}">${r2(d.Ra)} μm</span></div>
+      <div>T: <span style="color:${d.T>30?'#00c896':d.T>10?'#f0a500':'#ff4560'}">${r1(d.T)} min</span></div>
+      <div>P: <span style="color:${d.P<5?'#00c896':d.P<10?'#f0a500':'#ff4560'}">${r2(d.P)} kW</span></div>
+    </div>
+    ${state.optimised?'<div style="margin-top:10px;padding:6px;background:rgba(0,200,150,0.08);border:1px solid rgba(0,200,150,0.3);border-radius:3px;font-family:\'Share Tech Mono\',monospace;font-size:9px;color:#00c896;text-align:center;letter-spacing:0.1em;">✓ AUTO-OPTIMISED PARAMETERS</div>':''}
+  `;
+}
+
+// ══ History sparklines on tab ══
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('tab-history').addEventListener('transitionend',()=>{
+    const d=calcDfx(state.Vc,state.f,state.ap,state.r,MATERIALS[state.mat],state.coolant);
+    drawHistory(d);
+  });
+});
+</script>
+</body>
+</html>
