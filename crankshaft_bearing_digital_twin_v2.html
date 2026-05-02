@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crankshaft Journal Bearing — Digital Twin v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg0:#060d1a;--bg1:#0d1b2e;--bg2:#112240;--bg3:#163354;
+  --border:#1e3a5f;--border2:#254d78;
+  --cyan:#38bdf8;--cyan2:#7dd3fc;--cyan-dim:#164e7a;
+  --amber:#fbbf24;--amber2:#fde68a;--amber-dim:#6b4c00;
+  --green:#34d399;--green-dim:#064e3b;
+  --red:#f87171;--red-dim:#7f1d1d;
+  --orange:#fb923c;--orange-dim:#6c2a00;
+  --purple:#a78bfa;
+  --txt0:#e2e8f0;--txt1:#94a3b8;--txt2:#4b6380;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+  --r4:4px;--r8:8px;--r12:12px;
+  --shadow:0 4px 24px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg0);color:var(--txt0);min-height:100vh;padding:16px;font-size:13px}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 20% 0%,rgba(56,189,248,.04) 0%,transparent 60%),radial-gradient(ellipse 60% 40% at 80% 100%,rgba(251,191,36,.03) 0%,transparent 60%);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1600px;margin:0 auto}
+
+/* Header */
+.hdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;padding:12px 16px;background:var(--bg1);border:0.5px solid var(--border);border-radius:var(--r12)}
+.hdr-l{display:flex;flex-direction:column;gap:2px}
+.hdr-label{font-size:10px;color:var(--txt2);letter-spacing:.12em;text-transform:uppercase;font-family:var(--mono)}
+.hdr-title{font-size:20px;font-weight:600;color:var(--txt0);letter-spacing:-.02em}
+.hdr-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.state-badge{display:inline-flex;align-items:center;gap:7px;padding:5px 13px;border-radius:var(--r8);font-size:11px;font-weight:500;font-family:var(--mono);letter-spacing:.04em;transition:all .3s;border:0.5px solid transparent}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+.dot{width:7px;height:7px;border-radius:50%;animation:pulse 1.5s infinite}
+.simt{font-family:var(--mono);font-size:12px;color:var(--txt1);min-width:60px}
+.btn{font-family:var(--mono);font-size:11px;padding:5px 13px;border-radius:var(--r8);border:0.5px solid var(--border2);background:var(--bg2);color:var(--txt0);cursor:pointer;transition:all .15s}
+.btn:hover{background:var(--bg3);border-color:var(--cyan-dim)}
+.btn.active{background:var(--cyan-dim);border-color:var(--cyan);color:var(--cyan)}
+
+/* KPI strip */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px}
+.kpi{background:var(--bg1);border:0.5px solid var(--border);border-radius:var(--r8);padding:11px 14px;position:relative;overflow:hidden;transition:border-color .3s}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--r4) var(--r4) 0 0;background:var(--kpi-color,var(--cyan));opacity:.7}
+.kpi-lbl{font-size:9px;color:var(--txt2);letter-spacing:.1em;text-transform:uppercase;font-family:var(--mono);margin-bottom:3px}
+.kpi-val{font-size:22px;font-weight:600;font-family:var(--mono);line-height:1;color:var(--kpi-color,var(--cyan));letter-spacing:-.02em}
+.kpi-unit{font-size:11px;font-weight:400;color:var(--txt1);margin-left:2px}
+.kpi-sub{font-size:10px;color:var(--txt2);margin-top:3px;font-family:var(--mono)}
+
+/* Panels */
+.panel{background:var(--bg1);border:0.5px solid var(--border);border-radius:var(--r12);padding:13px;overflow:hidden}
+.ph{font-size:9px;color:var(--txt2);letter-spacing:.1em;text-transform:uppercase;font-family:var(--mono);margin-bottom:8px}
+.divider{height:0.5px;background:var(--border);margin:10px 0}
+
+/* Main grid */
+.grid-main{display:grid;grid-template-columns:200px 1fr 200px;gap:8px;margin-bottom:8px}
+.grid-mid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.grid-bot{display:grid;grid-template-columns:2fr 1fr 1.2fr;gap:8px;margin-bottom:8px}
+.grid-ctrl{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+
+/* Bearing SVG panel */
+.bearing-panel{display:flex;flex-direction:column;align-items:center;gap:8px}
+.inf-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;width:100%}
+.inf-card{background:var(--bg2);border-radius:var(--r4);padding:6px 8px;text-align:center}
+.inf-l{font-size:8px;color:var(--txt2);letter-spacing:.07em;text-transform:uppercase;font-family:var(--mono)}
+.inf-v{font-size:14px;font-weight:600;font-family:var(--mono);color:var(--cyan)}
+
+/* Chart containers */
+.ch{position:relative}
+
+/* Health gauge */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}
+.gauge-rows{width:100%;font-size:11px}
+.gauge-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--border)}
+.gauge-row:last-child{border-bottom:none}
+.g-lbl{color:var(--txt1);font-family:var(--mono);font-size:10px}
+.g-val{font-weight:600;font-family:var(--mono);font-size:11px}
+
+/* FMEA */
+.fmea-table{width:100%;border-collapse:collapse;font-size:11px}
+.fmea-table th{background:var(--bg2);color:var(--txt1);font-weight:500;font-family:var(--mono);font-size:9px;letter-spacing:.07em;text-transform:uppercase;padding:7px 8px;text-align:left;border-bottom:0.5px solid var(--border)}
+.fmea-table td{padding:6px 8px;border-bottom:0.5px solid var(--border);color:var(--txt0);font-family:var(--mono)}
+.fmea-table tr:last-child td{border-bottom:none}
+.rpn{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600}
+.rpn-r{background:rgba(248,113,113,.15);color:var(--red);border:0.5px solid rgba(248,113,113,.3)}
+.rpn-a{background:rgba(251,191,36,.12);color:var(--amber);border:0.5px solid rgba(251,191,36,.3)}
+.rpn-g{background:rgba(52,211,153,.1);color:var(--green);border:0.5px solid rgba(52,211,153,.2)}
+
+/* Material cards */
+.mat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.mat-card{background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--r8);padding:10px;transition:border-color .2s}
+.mat-card.rec{border-color:var(--cyan);background:rgba(56,189,248,.04)}
+.mat-nm{font-size:12px;font-weight:600;color:var(--txt0);margin-bottom:6px;font-family:var(--mono)}
+.mat-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;font-size:10px}
+.mat-lbl{color:var(--txt2)}
+.bar-bg{flex:1;margin:0 6px;height:4px;background:var(--bg3);border-radius:2px}
+.bar-fill{height:4px;border-radius:2px;transition:width .4s}
+.mat-score{font-family:var(--mono);color:var(--txt0);font-size:10px;min-width:14px;text-align:right}
+.rec-tag{font-size:8px;background:rgba(56,189,248,.12);color:var(--cyan);border:0.5px solid rgba(56,189,248,.3);padding:1px 6px;border-radius:2px;font-family:var(--mono);margin-bottom:4px;display:inline-block}
+
+/* Event log */
+.evlog{max-height:220px;overflow-y:auto}
+.evlog::-webkit-scrollbar{width:4px}
+.evlog::-webkit-scrollbar-track{background:var(--bg2)}
+.evlog::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.ev-row{display:flex;gap:7px;align-items:flex-start;padding:5px 0;border-bottom:0.5px solid var(--border)}
+.ev-t{font-family:var(--mono);font-size:9px;color:var(--txt2);min-width:32px}
+.ev-badge{font-size:8px;padding:1px 5px;border-radius:2px;font-family:var(--mono);font-weight:600;flex-shrink:0;margin-top:1px}
+.ev-ok{background:rgba(52,211,153,.12);color:var(--green);border:0.5px solid rgba(52,211,153,.25)}
+.ev-warn{background:rgba(251,191,36,.1);color:var(--amber);border:0.5px solid rgba(251,191,36,.25)}
+.ev-err{background:rgba(248,113,113,.12);color:var(--red);border:0.5px solid rgba(248,113,113,.25)}
+.ev-info{background:rgba(56,189,248,.1);color:var(--cyan);border:0.5px solid rgba(56,189,248,.2)}
+.ev-msg{color:var(--txt1);font-size:11px;line-height:1.4}
+
+/* Controls */
+.ctrl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.param-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.param-lbl{font-size:10px;color:var(--txt1);font-family:var(--mono);min-width:150px}
+input[type=range]{flex:1;accent-color:var(--cyan);height:4px}
+.param-val{font-size:11px;font-family:var(--mono);color:var(--cyan);min-width:60px;text-align:right}
+.scenario-btns{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.sc-btn{font-family:var(--mono);font-size:10px;padding:5px 11px;border-radius:var(--r4);border:0.5px solid var(--border2);background:var(--bg2);color:var(--txt1);cursor:pointer;transition:all .15s;letter-spacing:.03em}
+.sc-btn:hover{background:var(--bg3);color:var(--txt0)}
+.sc-btn.act{border-color:var(--amber);color:var(--amber);background:rgba(251,191,36,.08)}
+.formula-box{background:var(--bg2);border:0.5px solid var(--border2);border-radius:var(--r8);padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--cyan2);line-height:1.9}
+.formula-box span{color:var(--txt2)}
+
+/* Stribeck zone labels */
+.strib-zones{display:flex;gap:14px;margin-top:5px;flex-wrap:wrap}
+.zone-tag{font-size:9px;font-family:var(--mono);letter-spacing:.04em}
+
+/* Legend */
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:5px}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt1);font-family:var(--mono)}
+.leg-line{width:14px;height:2px;border-radius:1px}
+
+/* Misc */
+.section-title{font-size:18px;font-weight:600;color:var(--txt0);margin-bottom:10px;letter-spacing:-.01em}
+.row-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.regime-indicator{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-family:var(--mono);padding:3px 9px;border-radius:var(--r4);border:0.5px solid}
+.ok-ind{border-color:rgba(52,211,153,.4);color:var(--green);background:rgba(52,211,153,.07)}
+.warn-ind{border-color:rgba(251,191,36,.4);color:var(--amber);background:rgba(251,191,36,.06)}
+.err-ind{border-color:rgba(248,113,113,.4);color:var(--red);background:rgba(248,113,113,.07)}
+
+/* Responsive */
+@media(max-width:1100px){.grid-main{grid-template-columns:1fr 1fr}.grid-mid,.grid-bot,.grid-ctrl{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.kpi-row{grid-template-columns:repeat(3,1fr)}.grid-main,.grid-mid,.grid-bot,.grid-ctrl{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-l">
+    <span class="hdr-label">DIGITAL TWIN · SOMMERFELD PHYSICS ENGINE · RAIMONDI-BOYD MODEL</span>
+    <span class="hdr-title">Crankshaft Journal Bearing — Digital Twin v2</span>
+  </div>
+  <div class="hdr-r">
+    <span class="state-badge" id="stbadge"><span class="dot" id="ldot"></span><span id="stxt">INIT</span></span>
+    <span class="simt" id="simt">t = 0 s</span>
+    <button class="btn active" onclick="toggleSim()" id="simbtn">⏸ Pause</button>
+    <button class="btn" onclick="resetSim()">↺ Reset</button>
+  </div>
+</div>
+
+<!-- KPI STRIP -->
+<div class="kpi-row">
+  <div class="kpi" style="--kpi-color:var(--cyan)">
+    <div class="kpi-lbl">Speed N</div>
+    <div><span class="kpi-val" id="kv-rpm">—</span><span class="kpi-unit">rpm</span></div>
+    <div class="kpi-sub" id="ks-rpm">—</div>
+  </div>
+  <div class="kpi" style="--kpi-color:var(--amber)">
+    <div class="kpi-lbl">Load W</div>
+    <div><span class="kpi-val" id="kv-W">—</span><span class="kpi-unit">kN</span></div>
+    <div class="kpi-sub" id="ks-W">—</div>
+  </div>
+  <div class="kpi" style="--kpi-color:var(--green)">
+    <div class="kpi-lbl">Film h₀</div>
+    <div><span class="kpi-val" id="kv-h0">—</span><span class="kpi-unit">µm</span></div>
+    <div class="kpi-sub" id="ks-h0">—</div>
+  </div>
+  <div class="kpi" style="--kpi-color:var(--orange)">
+    <div class="kpi-lbl">Oil Temp T</div>
+    <div><span class="kpi-val" id="kv-T">—</span><span class="kpi-unit">°C</span></div>
+    <div class="kpi-sub" id="ks-T">—</div>
+  </div>
+  <div class="kpi" id="kpi-hlt" style="--kpi-color:var(--green)">
+    <div class="kpi-lbl">Health Index</div>
+    <div><span class="kpi-val" id="kv-hlt">—</span><span class="kpi-unit">%</span></div>
+    <div class="kpi-sub" id="ks-rul">RUL: — h</div>
+  </div>
+</div>
+
+<!-- ROW 1: Bearing animation | Live sensors | Stribeck + Health -->
+<div class="grid-main" style="grid-template-columns:200px 1fr 220px">
+
+  <!-- Bearing cross-section -->
+  <div class="panel bearing-panel">
+    <p class="ph">Journal position (live)</p>
+    <svg id="bsvg" viewBox="0 0 190 190" width="174" height="174" role="img"
+      aria-label="Animated bearing cross-section showing journal eccentricity position inside bearing housing with oil film and minimum film point indicator">
+      <!-- Outer housing -->
+      <circle cx="95" cy="95" r="82" fill="none" stroke="#1e3a5f" stroke-width="20"/>
+      <!-- Oil film fill (colour changes with eccentricity) -->
+      <circle id="oilFill" cx="95" cy="95" r="72" fill="rgba(251,191,36,0.06)"/>
+      <!-- Journal -->
+      <circle id="jrnCircle" cx="99" cy="101" r="62" fill="#112240" stroke="#254d78" stroke-width="4"/>
+      <!-- Eccentricity line -->
+      <line id="eccLine" x1="95" y1="95" x2="99" y2="101" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="3,2" opacity=".8"/>
+      <!-- Bearing centre -->
+      <circle cx="95" cy="95" r="3" fill="#4b6380"/>
+      <!-- Journal centre -->
+      <circle id="jrnCentre" cx="99" cy="101" r="3" fill="#38bdf8"/>
+      <!-- Min film point -->
+      <circle id="mfPoint" cx="99" cy="163" r="5" fill="#f87171" opacity=".9"/>
+      <text id="svgAnnot" x="95" y="185" text-anchor="middle" font-family="'IBM Plex Mono',monospace"
+        font-size="8" fill="#4b6380">S=? e=?</text>
+    </svg>
+    <div class="inf-grid">
+      <div class="inf-card"><div class="inf-l">Sommerfeld S</div><div class="inf-v" id="inf-S">—</div></div>
+      <div class="inf-card"><div class="inf-l">Eccentricity e</div><div class="inf-v" id="inf-e">—</div></div>
+      <div class="inf-card"><div class="inf-l">Attitude φ</div><div class="inf-v" id="inf-phi">—°</div></div>
+      <div class="inf-card"><div class="inf-l">h₀ / C</div><div class="inf-v" id="inf-hC">—</div></div>
+    </div>
+    <div id="regime-ind" class="regime-indicator ok-ind" style="margin-top:4px">● Hydrodynamic</div>
+  </div>
+
+  <!-- Live sensor streams -->
+  <div class="panel">
+    <div class="row-header">
+      <p class="ph" style="margin:0">Live sensor streams — 90 s rolling window</p>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-line" style="background:var(--cyan)"></span>h₀ (µm)</span>
+        <span class="leg-item"><span class="leg-line" style="background:var(--orange);border-top:2px dashed var(--orange);background:transparent"></span>T / 10 (°C)</span>
+        <span class="leg-item"><span class="leg-line" style="border-top:2px dotted var(--purple);background:transparent"></span>Vib×8 (g)</span>
+      </div>
+    </div>
+    <div class="ch" style="height:230px">
+      <canvas id="c-live" role="img"
+        aria-label="Rolling 90-second time series showing oil film thickness in cyan, oil temperature divided by 10 in orange dashed, and vibration RMS times 8 in purple dotted">
+      </canvas>
+    </div>
+  </div>
+
+  <!-- Health gauge + Stribeck mini -->
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div class="panel gauge-wrap">
+      <p class="ph" style="text-align:center;width:100%">Health index</p>
+      <svg viewBox="0 0 170 110" width="170" height="110" role="img"
+        aria-label="Semicircular health gauge showing bearing health percentage from 0 to 100">
+        <defs>
+          <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#f87171"/>
+            <stop offset="50%" stop-color="#fbbf24"/>
+            <stop offset="100%" stop-color="#34d399"/>
+          </linearGradient>
+        </defs>
+        <path d="M20 92 A65 65 0 0 1 150 92" fill="none" stroke="#1e3a5f" stroke-width="14" stroke-linecap="round"/>
+        <path id="arcFg" d="M20 92 A65 65 0 0 1 150 92" fill="none" stroke="var(--green)" stroke-width="14"
+          stroke-linecap="round" stroke-dasharray="204" stroke-dashoffset="20" style="transition:stroke-dashoffset .7s,stroke .5s"/>
+        <text id="gPct" x="85" y="80" text-anchor="middle" font-size="26" font-weight="600"
+          font-family="'IBM Plex Mono',monospace" fill="#34d399">—%</text>
+        <text x="85" y="97" text-anchor="middle" font-size="8.5"
+          font-family="'IBM Plex Mono',monospace" fill="#4b6380">BEARING HEALTH</text>
+        <text x="20" y="106" text-anchor="middle" font-size="7" font-family="'IBM Plex Mono',monospace" fill="#4b6380">0</text>
+        <text x="150" y="106" text-anchor="middle" font-size="7" font-family="'IBM Plex Mono',monospace" fill="#4b6380">100</text>
+      </svg>
+      <div class="gauge-rows" style="width:170px">
+        <div class="gauge-row"><span class="g-lbl">RUL</span><span class="g-val" id="g-rul">— h</span></div>
+        <div class="gauge-row"><span class="g-lbl">Severity</span><span class="g-val" id="g-sev">—</span></div>
+        <div class="gauge-row"><span class="g-lbl">Regime</span><span class="g-val" id="g-reg">—</span></div>
+        <div class="gauge-row"><span class="g-lbl">Maintenance</span><span class="g-val" id="g-mnt">—</span></div>
+        <div class="gauge-row"><span class="g-lbl">Friction f</span><span class="g-val" id="g-f">—</span></div>
+      </div>
+    </div>
+    <!-- Stribeck -->
+    <div class="panel" style="flex:1">
+      <p class="ph">Stribeck curve — live Hn</p>
+      <div class="ch" style="height:130px">
+        <canvas id="c-strib" role="img"
+          aria-label="Stribeck friction curve with animated current operating point showing boundary, mixed, and hydrodynamic lubrication regimes">
+        </canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 2: Pressure P(θ) | Film h(θ) | Performance map -->
+<div class="grid-mid">
+  <div class="panel">
+    <p class="ph">Oil film pressure distribution P(θ) — half-Sommerfeld</p>
+    <div class="ch" style="height:185px">
+      <canvas id="c-press" role="img"
+        aria-label="Oil film pressure distribution around journal bearing from 0 to 360 degrees using half-Sommerfeld model with cavitation zone shown">
+      </canvas>
+    </div>
+    <p style="font-size:9px;color:var(--txt2);font-family:var(--mono);margin-top:4px">
+      P(θ) ∝ esinθ(2+ecosθ) / (2+e²)(1+ecosθ)² · Cavitation: θ=180→360 zeroed
+    </p>
+  </div>
+  <div class="panel">
+    <p class="ph">Film thickness h(θ) — circumferential variation</p>
+    <div class="ch" style="height:185px">
+      <canvas id="c-hth" role="img"
+        aria-label="Oil film thickness variation with angle showing minimum clearance location and maximum film thickness position">
+      </canvas>
+    </div>
+    <p style="font-size:9px;color:var(--txt2);font-family:var(--mono);margin-top:4px">
+      h(θ) = C(1 + e·cosθ) · Min point marked ●
+    </p>
+  </div>
+  <div class="panel">
+    <p class="ph">Performance map — h₀ &amp; friction vs speed (RPM sweep)</p>
+    <div class="ch" style="height:185px">
+      <canvas id="c-perf" role="img"
+        aria-label="Dual-axis performance map showing minimum film thickness and friction coefficient versus shaft speed from 500 to 6500 rpm">
+      </canvas>
+    </div>
+    <div class="legend" style="margin-top:5px">
+      <span class="leg-item"><span class="leg-line" style="background:var(--cyan)"></span>h₀ (µm)</span>
+      <span class="leg-item"><span class="leg-line" style="border-top:2px dashed var(--amber);background:transparent"></span>f×10³</span>
+    </div>
+  </div>
+</div>
+
+<!-- ROW 3: FMEA | Materials | Event log -->
+<div class="grid-bot">
+  <!-- FMEA -->
+  <div class="panel">
+    <p class="ph">FMEA — failure mode &amp; effects analysis</p>
+    <table class="fmea-table" aria-label="FMEA table with severity occurrence detectability and RPN scores for six failure modes">
+      <thead>
+        <tr>
+          <th>Failure Mode</th><th>S</th><th>O</th><th>D</th><th>RPN</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Fatigue / spalling</td><td>8</td><td>6</td><td>4</td><td><span class="rpn rpn-r">192</span></td><td style="color:var(--red);font-size:10px">Critical ↑</td></tr>
+        <tr><td>Adhesive wear</td><td>7</td><td>5</td><td>5</td><td><span class="rpn rpn-r">175</span></td><td style="color:var(--red);font-size:10px">Critical ↑</td></tr>
+        <tr><td>Corrosion / pitting</td><td>6</td><td>4</td><td>5</td><td><span class="rpn rpn-a">120</span></td><td style="color:var(--amber);font-size:10px">Monitor</td></tr>
+        <tr><td>Seizure / scoring</td><td>9</td><td>3</td><td>4</td><td><span class="rpn rpn-a">108</span></td><td style="color:var(--amber);font-size:10px">Monitor</td></tr>
+        <tr><td>Fretting damage</td><td>5</td><td>3</td><td>6</td><td><span class="rpn rpn-g">90</span></td><td style="color:var(--green);font-size:10px">Acceptable</td></tr>
+        <tr><td>Abrasive wear</td><td>6</td><td>3</td><td>4</td><td><span class="rpn rpn-g">72</span></td><td style="color:var(--green);font-size:10px">Acceptable</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:9px;color:var(--txt2);font-family:var(--mono);margin-top:6px">
+      RPN = S×O×D · S=Severity · O=Occurrence · D=Detectability (1–10 each)
+    </p>
+  </div>
+
+  <!-- Material comparison -->
+  <div class="panel">
+    <p class="ph">Bearing material options</p>
+    <div class="mat-grid">
+      <div class="mat-card">
+        <div class="mat-nm">Babbitt (Sn)</div>
+        <div class="mat-row"><span class="mat-lbl">Load limit</span><div class="bar-bg"><div class="bar-fill" style="width:40%;background:#38bdf8"></div></div><span class="mat-score">14 MPa</span></div>
+        <div class="mat-row"><span class="mat-lbl">Fatigue</span><div class="bar-bg"><div class="bar-fill" style="width:35%;background:#f87171"></div></div><span class="mat-score">3.5/10</span></div>
+        <div class="mat-row"><span class="mat-lbl">Embedability</span><div class="bar-bg"><div class="bar-fill" style="width:90%;background:#34d399"></div></div><span class="mat-score">9/10</span></div>
+        <div class="mat-row"><span class="mat-lbl">Corrosion res.</span><div class="bar-bg"><div class="bar-fill" style="width:55%;background:#a78bfa"></div></div><span class="mat-score">5.5/10</span></div>
+      </div>
+      <div class="mat-card rec">
+        <span class="rec-tag">★ RECOMMENDED</span>
+        <div class="mat-nm" style="color:var(--cyan)">Al-Sn 20%</div>
+        <div class="mat-row"><span class="mat-lbl">Load limit</span><div class="bar-bg"><div class="bar-fill" style="width:80%;background:#38bdf8"></div></div><span class="mat-score">28 MPa</span></div>
+        <div class="mat-row"><span class="mat-lbl">Fatigue</span><div class="bar-bg"><div class="bar-fill" style="width:70%;background:#34d399"></div></div><span class="mat-score">7/10</span></div>
+        <div class="mat-row"><span class="mat-lbl">Embedability</span><div class="bar-bg"><div class="bar-fill" style="width:60%;background:#34d399"></div></div><span class="mat-score">6/10</span></div>
+        <div class="mat-row"><span class="mat-lbl">Corrosion res.</span><div class="bar-bg"><div class="bar-fill" style="width:75%;background:#a78bfa"></div></div><span class="mat-score">7.5/10</span></div>
+      </div>
+      <div class="mat-card">
+        <div class="mat-nm">Cu-Pb alloy</div>
+        <div class="mat-row"><span class="mat-lbl">Load limit</span><div class="bar-bg"><div class="bar-fill" style="width:100%;background:#38bdf8"></div></div><span class="mat-score">35 MPa</span></div>
+        <div class="mat-row"><span class="mat-lbl">Fatigue</span><div class="bar-bg"><div class="bar-fill" style="width:80%;background:#34d399"></div></div><span class="mat-score">8/10</span></div>
+        <div class="mat-row"><span class="mat-lbl">Embedability</span><div class="bar-bg"><div class="bar-fill" style="width:30%;background:#f87171"></div></div><span class="mat-score">3/10</span></div>
+        <div class="mat-row"><span class="mat-lbl">Corrosion res.</span><div class="bar-bg"><div class="bar-fill" style="width:45%;background:#a78bfa"></div></div><span class="mat-score">4.5/10</span></div>
+      </div>
+      <div class="mat-card">
+        <div class="mat-nm">PTFE comp.</div>
+        <div class="mat-row"><span class="mat-lbl">Load limit</span><div class="bar-bg"><div class="bar-fill" style="width:22%;background:#38bdf8"></div></div><span class="mat-score">8 MPa</span></div>
+        <div class="mat-row"><span class="mat-lbl">Fatigue</span><div class="bar-bg"><div class="bar-fill" style="width:20%;background:#f87171"></div></div><span class="mat-score">2/10</span></div>
+        <div class="mat-row"><span class="mat-lbl">Embedability</span><div class="bar-bg"><div class="bar-fill" style="width:80%;background:#34d399"></div></div><span class="mat-score">8/10</span></div>
+        <div class="mat-row"><span class="mat-lbl">Corrosion res.</span><div class="bar-bg"><div class="bar-fill" style="width:90%;background:#a78bfa"></div></div><span class="mat-score">9/10</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event log -->
+  <div class="panel">
+    <div class="row-header">
+      <p class="ph" style="margin:0">Event log</p>
+      <button class="btn" onclick="clearLog()" style="font-size:9px;padding:3px 8px">Clear</button>
+    </div>
+    <div class="evlog" id="evlog" role="log" aria-live="polite" aria-label="Real-time bearing event log"></div>
+  </div>
+</div>
+
+<!-- ROW 4: Controls + formula -->
+<div class="grid-ctrl">
+  <div class="panel">
+    <p class="ph">Engine scenario — state machine</p>
+    <div class="scenario-btns" id="scBtns">
+      <button class="sc-btn" onclick="setScenario('COLD')" id="sc-COLD">❄ Cold Start</button>
+      <button class="sc-btn" onclick="setScenario('WARM')" id="sc-WARM">↑ Warm-Up</button>
+      <button class="sc-btn" onclick="setScenario('STEADY')" id="sc-STEADY">✦ Steady State</button>
+      <button class="sc-btn" onclick="setScenario('PEAK')" id="sc-PEAK">⚡ Peak Firing</button>
+      <button class="sc-btn" onclick="setScenario('FAULT')" id="sc-FAULT">⚠ Fault Inject</button>
+      <button class="sc-btn act" onclick="setScenario('AUTO')" id="sc-AUTO">⟳ Auto Cycle</button>
+    </div>
+    <div class="divider"></div>
+    <p class="ph" style="margin-top:6px">Manual override — design parameters</p>
+    <div class="param-row"><span class="param-lbl">Viscosity μ (mPa·s)</span><input type="range" id="sl-mu" min="5" max="22" value="10" step=".5" oninput="onSlider()"><span class="param-val" id="sv-mu">10.0</span></div>
+    <div class="param-row"><span class="param-lbl">Speed N (rpm)</span><input type="range" id="sl-N" min="500" max="6500" value="3000" step="100" oninput="onSlider()"><span class="param-val" id="sv-N">3000</span></div>
+    <div class="param-row"><span class="param-lbl">Radial load W (kN)</span><input type="range" id="sl-W" min="1" max="60" value="25" step="1" oninput="onSlider()"><span class="param-val" id="sv-W">25</span></div>
+    <div class="param-row"><span class="param-lbl">Journal dia D (mm)</span><input type="range" id="sl-D" min="30" max="80" value="50" step="2" oninput="onSlider()"><span class="param-val" id="sv-D">50</span></div>
+    <div class="param-row"><span class="param-lbl">Bearing length L (mm)</span><input type="range" id="sl-L" min="20" max="70" value="35" step="2" oninput="onSlider()"><span class="param-val" id="sv-L">35</span></div>
+    <div class="param-row"><span class="param-lbl">Radial clearance C (µm)</span><input type="range" id="sl-C" min="15" max="80" value="35" step="1" oninput="onSlider()"><span class="param-val" id="sv-C">35</span></div>
+  </div>
+  <div class="panel">
+    <p class="ph">Core tribology equations</p>
+    <div class="formula-box">
+      <span>Sommerfeld number:</span>    S = (μ·N/P)·(R/C)²<br>
+      <span>Bearing pressure:</span>     P = W / (L·D)<br>
+      <span>Film thickness:</span>       h(θ) = C(1 + ε·cosθ)<br>
+      <span>Eccentricity:</span>         ε = e/C = 1 − h₀/C<br>
+      <span>Half-Sommerfeld P(θ):</span> ∝ εsinθ(2+εcosθ) / (2+ε²)(1+εcosθ)²<br>
+      <span>Hersey number:</span>        Hn = μ·N / P<br>
+      <span>Friction coeff:</span>       f = (f·R/C)·(C/R) from R-B tables<br>
+      <span>RUL model:</span>            RUL = RUL₀ · (H/H₀)^α<br>
+      <span>Viscosity-temp:</span>       μ(T) = μ₀·exp(β/(T+273))
+    </div>
+    <div class="divider"></div>
+    <p class="ph" style="margin-top:6px">Design validation checklist</p>
+    <div id="checklist" style="font-size:11px;font-family:var(--mono);line-height:1.8;color:var(--txt1)">
+      <div id="chk-hC">— h₀/C ratio check</div>
+      <div id="chk-P">— Bearing pressure vs material limit</div>
+      <div id="chk-LD">— L/D ratio (0.5–1.0 range)</div>
+      <div id="chk-Ra">— h₀ vs surface roughness (Ra=0.3 µm)</div>
+      <div id="chk-T">— Oil temperature limit (&lt; 120 °C)</div>
+      <div id="chk-f">— Friction coefficient (&lt; 0.01 HL)</div>
+      <div id="chk-mis">— Misalignment &amp; edge loading</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end wrap -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+"use strict";
+// ─── PHYSICS CONSTANTS ───────────────────────────────────────────────────────
+const D_m=0.05, L_m=0.035, C_m=35e-6, R_m=0.025; // default geometry
+// Raimondi-Boyd interpolation (S vs h₀/C) for L/D≈0.5–1
+const RB_S =[0.025,0.05,0.08,0.12,0.2,0.35,0.6,1.0,1.8,3.5,7.0];
+const RB_hC=[0.04, 0.08,0.13,0.18,0.27,0.38,0.5,0.62,0.74,0.84,0.91];
+// f·(R/C) vs S
+const RB_fRC=[0.9, 1.4, 1.9, 2.6, 3.8, 5.5, 8.2,13.0,22.0,40.0,76.0];
+
+function interp(xs,ys,v){
+  if(v<=xs[0])return ys[0];
+  if(v>=xs[xs.length-1])return ys[xs.length-1];
+  for(let i=0;i<xs.length-1;i++){
+    if(v>=xs[i]&&v<=xs[i+1]){
+      const t=(v-xs[i])/(xs[i+1]-xs[i]);
+      return ys[i]+t*(ys[i+1]-ys[i]);
+    }
+  }
+  return ys[ys.length-1];
+}
+function hRatio(S){return interp(RB_S,RB_hC,S);}
+function fRCval(S){return interp(RB_S,RB_fRC,S);}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const rnd=(s)=>(Math.random()-.5)*2*s;
+
+// ─── STATE MACHINE ────────────────────────────────────────────────────────────
+const STATES={
+  COLD:  {n:'COLD START',  bg:'rgba(251,191,36,.12)', tc:'#fbbf24', dc:'#fbbf24', rpm:820,  W_kN:1.9,  T:40,  muf:3.1},
+  WARM:  {n:'WARM-UP',     bg:'rgba(56,189,248,.10)', tc:'#38bdf8', dc:'#38bdf8', rpm:2200, W_kN:2.3,  T:78,  muf:1.6},
+  STEADY:{n:'STEADY STATE',bg:'rgba(52,211,153,.09)', tc:'#34d399', dc:'#34d399', rpm:3000, W_kN:1.5,  T:96,  muf:1.0},
+  PEAK:  {n:'PEAK FIRING', bg:'rgba(248,113,113,.10)',tc:'#f87171', dc:'#f87171', rpm:4500, W_kN:11.2, T:112, muf:0.78},
+  FAULT: {n:'ANOMALY ⚠',  bg:'rgba(248,113,113,.14)',tc:'#f87171', dc:'#f87171', rpm:3000, W_kN:4.6,  T:118, muf:0.86}
+};
+const AUTO_SEQ=['COLD','COLD','COLD','COLD','COLD','WARM','WARM','WARM','WARM',
+  'STEADY','STEADY','STEADY','STEADY','STEADY','STEADY','STEADY',
+  'PEAK','PEAK','PEAK','STEADY','STEADY','STEADY','STEADY',
+  'PEAK','PEAK','STEADY','STEADY','FAULT','FAULT','FAULT'];
+
+let tick=0, running=true, manualOverride=false, currentScenario='AUTO';
+let rul=18500, health=95, lastStateN='', lastAlertH0=0, lastAlertT=0;
+let mu_override=10e-3, N_override=3000, W_override=25e3;
+let D_use=D_m, L_use=L_m, C_use=C_m, R_use=R_m;
+
+// ─── CHART SETUP ─────────────────────────────────────────────────────────────
+const NP=90;
+const tsLabels=Array(NP).fill('');
+const dH=Array(NP).fill(null),dT=Array(NP).fill(null),dV=Array(NP).fill(null);
+const C_TXT='#4b6380', C_GRID='rgba(30,58,95,.8)';
+
+let liveChart, stribChart, pressChart, hthChart, perfChart;
+
+function initCharts(){
+  // Live sensor streams
+  liveChart=new Chart(document.getElementById('c-live'),{
+    type:'line',
+    data:{labels:[...tsLabels],datasets:[
+      {data:[...dH],borderColor:'#38bdf8',borderWidth:2,pointRadius:0,tension:0.4,fill:false},
+      {data:[...dT],borderColor:'#fb923c',borderWidth:2,borderDash:[7,4],pointRadius:0,tension:0.4,fill:false},
+      {data:[...dV],borderColor:'#a78bfa',borderWidth:2,borderDash:[2,4],pointRadius:0,tension:0.3,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:0},
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:C_TXT,font:{size:9,family:"'IBM Plex Mono'"},maxTicksLimit:9},grid:{color:C_GRID}},
+        y:{min:0,max:32,ticks:{color:C_TXT,font:{size:9,family:"'IBM Plex Mono'"}},grid:{color:C_GRID},
+          title:{display:true,text:'Normalized value',color:C_TXT,font:{size:9}}}
+      }}
+  });
+
+  // Stribeck curve
+  const sxH=[-9.5,-9.0,-8.6,-8.2,-7.8,-7.5,-7.2,-6.9,-6.5,-6.2,-5.8,-5.4,-5.0,-4.6];
+  const syF=[0.13,0.10,0.080,0.062,0.046,0.032,0.018,0.0088,0.003,0.0025,0.0028,0.0038,0.0055,0.008];
+  stribChart=new Chart(document.getElementById('c-strib'),{
+    type:'scatter',
+    data:{datasets:[
+      {data:sxH.map((x,i)=>({x,y:syF[i]})),type:'line',showLine:true,borderColor:'#254d78',
+        borderWidth:2,pointRadius:0,tension:0.5,fill:false,order:3},
+      // zone fills
+      {data:[{x:-9.5,y:0},{x:-8.2,y:0},{x:-8.2,y:.14},{x:-9.5,y:.14}],type:'line',showLine:true,
+        fill:true,backgroundColor:'rgba(248,113,113,.07)',borderWidth:0,pointRadius:0,order:4},
+      {data:[{x:-8.2,y:0},{x:-6.8,y:0},{x:-6.8,y:.14},{x:-8.2,y:.14}],type:'line',showLine:true,
+        fill:true,backgroundColor:'rgba(251,191,36,.06)',borderWidth:0,pointRadius:0,order:4},
+      {data:[{x:-6.8,y:0},{x:-4.6,y:0},{x:-4.6,y:.14},{x:-6.8,y:.14}],type:'line',showLine:true,
+        fill:true,backgroundColor:'rgba(52,211,153,.05)',borderWidth:0,pointRadius:0,order:4},
+      {data:[{x:-6.8,y:0.065}],type:'scatter',backgroundColor:'#f87171',pointRadius:8,order:1} // live dot
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:180},
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{min:-9.5,max:-4.6,title:{display:true,text:'log₁₀(Hn) = log₁₀(μN/P)',color:C_TXT,font:{size:9}},
+          ticks:{color:C_TXT,font:{size:8,family:"'IBM Plex Mono'"}},grid:{color:C_GRID}},
+        y:{min:0,max:0.14,title:{display:true,text:'f',color:C_TXT,font:{size:9}},
+          ticks:{color:C_TXT,font:{size:8,family:"'IBM Plex Mono'"}},grid:{color:C_GRID}}
+      }}
+  });
+
+  // Pressure P(θ)
+  const thetas=Array.from({length:73},(_,i)=>i*5);
+  pressChart=new Chart(document.getElementById('c-press'),{
+    type:'line',
+    data:{labels:thetas,datasets:[{
+      data:thetas.map(()=>0),borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,.08)',
+      fill:true,borderWidth:2,pointRadius:0,tension:0.4}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:250},
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{title:{display:true,text:'θ (°)',color:C_TXT,font:{size:9}},
+          ticks:{color:C_TXT,font:{size:8},maxTicksLimit:9},grid:{color:C_GRID}},
+        y:{title:{display:true,text:'P (MPa)',color:C_TXT,font:{size:9}},
+          ticks:{color:C_TXT,font:{size:8}},grid:{color:C_GRID}}
+      }}
+  });
+
+  // Film h(θ)
+  hthChart=new Chart(document.getElementById('c-hth'),{
+    type:'line',
+    data:{labels:thetas,datasets:[
+      {data:thetas.map(()=>0),borderColor:'#34d399',backgroundColor:'rgba(52,211,153,.07)',
+        fill:true,borderWidth:2,pointRadius:0,tension:0.4,label:'h(θ)'},
+      {data:thetas.map(()=>null),type:'scatter',backgroundColor:'#f87171',
+        borderColor:'#f87171',pointRadius:6,label:'h₀ min',showLine:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:250},
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{title:{display:true,text:'θ (°)',color:C_TXT,font:{size:9}},
+          ticks:{color:C_TXT,font:{size:8},maxTicksLimit:9},grid:{color:C_GRID}},
+        y:{title:{display:true,text:'h (µm)',color:C_TXT,font:{size:9}},
+          ticks:{color:C_TXT,font:{size:8}},grid:{color:C_GRID}}
+      }}
+  });
+
+  // Performance sweep
+  buildPerfChart();
+}
+
+function buildPerfChart(){
+  const muRef=0.012, WRef=25000;
+  const rpms=[500,800,1000,1500,2000,3000,4000,5000,6500];
+  const pH=[],pF=[];
+  rpms.forEach(r=>{
+    const N=r/60, P=WRef/(L_use*D_use), Rr=D_use/2;
+    const S=(muRef*N*Rr*Rr)/(P*C_use*C_use);
+    const hC=hRatio(S);
+    pH.push((hC*C_use*1e6).toFixed(2));
+    const f=fRCval(S)*(C_use/Rr);
+    pF.push((f*1000).toFixed(3));
+  });
+  if(perfChart){perfChart.destroy();}
+  perfChart=new Chart(document.getElementById('c-perf'),{
+    type:'line',
+    data:{labels:rpms,datasets:[
+      {data:pH,borderColor:'#38bdf8',borderWidth:2,pointRadius:3,
+        pointBackgroundColor:'#38bdf8',tension:0.4,yAxisID:'y',fill:false},
+      {data:pF,borderColor:'#fbbf24',borderWidth:2,borderDash:[6,4],
+        pointRadius:3,pointBackgroundColor:'#fbbf24',tension:0.4,yAxisID:'y2',fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:200},
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{title:{display:true,text:'Speed (rpm)',color:C_TXT,font:{size:9}},
+          ticks:{color:C_TXT,font:{size:8}},grid:{color:C_GRID}},
+        y:{title:{display:true,text:'h₀ (µm)',color:C_TXT,font:{size:9}},
+          ticks:{color:C_TXT,font:{size:8}},grid:{color:C_GRID},position:'left'},
+        y2:{title:{display:true,text:'f×10³',color:C_TXT,font:{size:9}},
+          ticks:{color:C_TXT,font:{size:8}},grid:{display:false},position:'right'}
+      }}
+  });
+}
+
+// ─── CORE PHYSICS STEP ───────────────────────────────────────────────────────
+function computePhysics(mu_Pa, N_rps, W_N){
+  const P = W_N/(L_use*D_use);
+  const S = (mu_Pa*N_rps*R_use*R_use)/(P*C_use*C_use);
+  const hC = hRatio(S);
+  const h0 = hC*C_use*1e6;
+  const e = clamp(1-hC,0,0.97);
+  const phi = clamp(90-80*hC,2,85);
+  const f = fRCval(S)*(C_use/R_use);
+  const Hn = mu_Pa*N_rps/P;
+  return {S,hC,h0,e,phi,f,Hn,P};
+}
+
+function pressureDistrib(e){
+  const thetas=Array.from({length:73},(_,i)=>i*Math.PI/180*5);
+  return thetas.map(th=>{
+    if(th>Math.PI)return 0; // cavitation (half-Sommerfeld)
+    const num=e*Math.sin(th)*(2+e*Math.cos(th));
+    const den=(2+e*e)*Math.pow(1+e*Math.cos(th),2);
+    return Math.max(0,num/den);
+  });
+}
+
+function filmThickness(e,C_um){
+  const thetas=Array.from({length:73},(_,i)=>i*5);
+  return thetas.map(deg=>{
+    const th=deg*Math.PI/180;
+    return (1+e*Math.cos(th))*C_um;
+  });
+}
+
+// ─── SVG ANIMATION ───────────────────────────────────────────────────────────
+function updateSVG(e,phi_deg){
+  const cx=95,cy=95,CV=18;
+  const phi=phi_deg*Math.PI/180;
+  const jx=cx+e*CV*Math.sin(phi);
+  const jy=cy+e*CV*Math.cos(phi);
+  document.getElementById('jrnCircle').setAttribute('cx',jx.toFixed(1));
+  document.getElementById('jrnCircle').setAttribute('cy',jy.toFixed(1));
+  document.getElementById('jrnCentre').setAttribute('cx',jx.toFixed(1));
+  document.getElementById('jrnCentre').setAttribute('cy',jy.toFixed(1));
+  document.getElementById('eccLine').setAttribute('x2',jx.toFixed(1));
+  document.getElementById('eccLine').setAttribute('y2',jy.toFixed(1));
+  const mfx=clamp(cx+(e*CV+62)*Math.sin(phi),5,185);
+  const mfy=clamp(cy+(e*CV+62)*Math.cos(phi),5,185);
+  document.getElementById('mfPoint').setAttribute('cx',mfx.toFixed(1));
+  document.getElementById('mfPoint').setAttribute('cy',mfy.toFixed(1));
+  const oilEl=document.getElementById('oilFill');
+  oilEl.style.fill=e>0.75?'rgba(248,113,113,.08)':e>0.55?'rgba(251,191,36,.07)':'rgba(52,211,153,.05)';
+}
+
+// ─── EVENT LOG ────────────────────────────────────────────────────────────────
+const evLog=[];
+function addEvent(msg,type){
+  const log=document.getElementById('evlog');
+  evLog.unshift({t:tick,msg,type});
+  if(evLog.length>30)evLog.pop();
+  log.innerHTML=evLog.map(ev=>{
+    const cls={'ok':'ev-ok','warn':'ev-warn','err':'ev-err','info':'ev-info'}[ev.type]||'ev-info';
+    const label={'ok':'OK','warn':'WARN','err':'ERROR','info':'INFO'}[ev.type]||ev.type;
+    return `<div class="ev-row"><span class="ev-t">${ev.t}s</span><span class="ev-badge ${cls}">${label}</span><span class="ev-msg">${ev.msg}</span></div>`;
+  }).join('');
+}
+function clearLog(){evLog.length=0;document.getElementById('evlog').innerHTML='';}
+
+// ─── CHECKLIST ───────────────────────────────────────────────────────────────
+function updateChecklist(hC,P_MPa,f,T){
+  const ok='<span style="color:var(--green)">✓</span> ';
+  const wa='<span style="color:var(--amber)">⚠</span> ';
+  const er='<span style="color:var(--red)">✗</span> ';
+  const LD=(L_use/D_use).toFixed(2);
+  const h0um=(hC*C_use*1e6).toFixed(1);
+  document.getElementById('chk-hC').innerHTML=(hC>0.3?ok:hC>0.2?wa:er)+`h₀/C = ${hC.toFixed(3)} (target >0.30)`;
+  document.getElementById('chk-P').innerHTML=(P_MPa<28?ok:P_MPa<35?wa:er)+`P = ${P_MPa.toFixed(1)} MPa (Al-Sn limit 28 MPa)`;
+  document.getElementById('chk-LD').innerHTML=(LD>=0.5&&LD<=1.0?ok:wa)+`L/D = ${LD} (range 0.5–1.0)`;
+  document.getElementById('chk-Ra').innerHTML=(parseFloat(h0um)>0.9?ok:er)+`h₀ = ${h0um} µm vs 3×Ra (0.9 µm)`;
+  document.getElementById('chk-T').innerHTML=(T<105?ok:T<118?wa:er)+`T = ${T.toFixed(0)} °C (limit 120 °C)`;
+  document.getElementById('chk-f').innerHTML=(f<0.005?ok:f<0.01?wa:er)+`f = ${f.toFixed(4)} (HL <0.01)`;
+  document.getElementById('chk-mis').innerHTML=(hC>0.4?ok:wa)+'Misalignment tolerance (h₀/C based)';
+}
+
+// ─── SCENARIO CONTROL ────────────────────────────────────────────────────────
+function setScenario(sc){
+  currentScenario=sc;
+  manualOverride=false;
+  document.querySelectorAll('.sc-btn').forEach(b=>b.classList.remove('act'));
+  document.getElementById('sc-'+sc).classList.add('act');
+  if(sc!=='AUTO')addEvent(`Scenario forced → ${STATES[sc]?.n||sc}`,'info');
+}
+function onSlider(){
+  manualOverride=true;
+  mu_override=parseFloat(document.getElementById('sl-mu').value)*1e-3;
+  N_override=parseFloat(document.getElementById('sl-N').value);
+  W_override=parseFloat(document.getElementById('sl-W').value)*1000;
+  D_use=parseFloat(document.getElementById('sl-D').value)*1e-3;
+  L_use=parseFloat(document.getElementById('sl-L').value)*1e-3;
+  C_use=parseFloat(document.getElementById('sl-C').value)*1e-6;
+  R_use=D_use/2;
+  document.getElementById('sv-mu').textContent=parseFloat(document.getElementById('sl-mu').value).toFixed(1);
+  document.getElementById('sv-N').textContent=document.getElementById('sl-N').value;
+  document.getElementById('sv-W').textContent=document.getElementById('sl-W').value;
+  document.getElementById('sv-D').textContent=document.getElementById('sl-D').value;
+  document.getElementById('sv-L').textContent=document.getElementById('sl-L').value;
+  document.getElementById('sv-C').textContent=document.getElementById('sl-C').value;
+  buildPerfChart();
+  document.querySelectorAll('.sc-btn').forEach(b=>b.classList.remove('act'));
+  currentScenario='MANUAL';
+}
+
+// ─── MAIN TICK ────────────────────────────────────────────────────────────────
+function step(){
+  if(!running)return;
+  tick++;
+  document.getElementById('simt').textContent=`t = ${tick} s`;
+
+  let mu_Pa, N_rps, W_N, T_deg;
+  if(manualOverride){
+    mu_Pa=mu_override; N_rps=N_override/60; W_N=W_override; T_deg=85;
+  } else {
+    const stKey= currentScenario==='AUTO'
+      ? (tick<AUTO_SEQ.length? AUTO_SEQ[tick-1]:AUTO_SEQ[(tick-1)%AUTO_SEQ.length])
+      : currentScenario;
+    const st=STATES[stKey]||STATES.STEADY;
+    if(st.n!==lastStateN){
+      lastStateN=st.n;
+      const b=document.getElementById('stbadge');
+      b.style.background=st.bg; b.style.color=st.tc;
+      document.getElementById('ldot').style.background=st.dc;
+      document.getElementById('stxt').textContent=st.n;
+      addEvent(`State → ${st.n}`,stKey==='FAULT'||stKey==='PEAK'?'warn':stKey==='COLD'?'info':'ok');
+    }
+    const MU0=0.015;
+    mu_Pa=MU0*st.muf*(1+rnd(.035));
+    N_rps=(st.rpm*(1+rnd(.012)))/60;
+    W_N=st.W_kN*1000*(1+rnd(.055));
+    T_deg=st.T*(1+rnd(.006))+(1-hRatio((mu_Pa*N_rps*R_use*R_use)/((W_N/(L_use*D_use))*C_use*C_use)))*3;
+  }
+
+  const {S,hC,h0,e,phi,f,Hn,P}=computePhysics(mu_Pa,N_rps,W_N);
+  const P_MPa=P/1e6;
+  const T=T_deg||(85*(1+rnd(.04)));
+  const vibRMS=0.22+(1-hC)*3.2*(1+rnd(.22));
+  const logHn=Math.log10(Math.max(Hn,1e-12));
+
+  // Health model (physics-based weighted)
+  const Hw=clamp(0.5*hC+0.25*(1-Math.max(0,(T-85)/90))+0.25*(1-W_N/60000),0,1);
+  health=clamp(health*.92+100*Hw*.08,0,100);
+  const degradeRate=currentScenario==='FAULT'?12:currentScenario==='PEAK'?1.2:0.3;
+  rul=Math.max(0,rul-degradeRate);
+
+  // ── KPI cards ─────
+  const rpm_disp=Math.round(N_rps*60*(1+rnd(.008)));
+  document.getElementById('kv-rpm').textContent=rpm_disp.toLocaleString();
+  document.getElementById('ks-rpm').textContent=lastStateN||'Manual';
+  document.getElementById('kv-W').textContent=(W_N/1000).toFixed(1);
+  document.getElementById('ks-W').textContent=W_N>8000?'Peak firing':W_N>3500?'High':'Nominal';
+  document.getElementById('kv-h0').textContent=h0.toFixed(1);
+  const regTxt=hC>0.38?'Hydrodynamic':hC>0.22?'Mixed':'Boundary';
+  const regC=hC>0.38?'var(--green)':hC>0.22?'var(--amber)':'var(--red)';
+  document.getElementById('ks-h0').textContent=regTxt;
+  document.getElementById('ks-h0').style.color=regC;
+  document.getElementById('kv-T').textContent=T.toFixed(0);
+  document.getElementById('ks-T').textContent=T>113?'HIGH':T>103?'Elevated':'Normal';
+  document.getElementById('ks-T').style.color=T>113?'var(--red)':T>103?'var(--amber)':'var(--txt2)';
+  const hltC=health>70?'var(--green)':health>45?'var(--amber)':'var(--red)';
+  document.getElementById('kv-hlt').textContent=Math.round(health);
+  document.getElementById('kv-hlt').style.color=hltC;
+  document.getElementById('kpi-hlt').style.setProperty('--kpi-color',hltC);
+  document.getElementById('ks-rul').textContent=`RUL: ${Math.round(rul).toLocaleString()} h`;
+
+  // ── Bearing SVG ─────
+  updateSVG(e,phi);
+  document.getElementById('inf-S').textContent=S.toFixed(3);
+  document.getElementById('inf-e').textContent=e.toFixed(3);
+  document.getElementById('inf-phi').textContent=phi.toFixed(0)+'°';
+  document.getElementById('inf-hC').textContent=hC.toFixed(3);
+  document.getElementById('svgAnnot').textContent=`S=${S.toFixed(3)}  e=${e.toFixed(3)}`;
+  const regInd=document.getElementById('regime-ind');
+  regInd.textContent=`● ${regTxt}`;
+  regInd.className='regime-indicator '+(hC>0.38?'ok-ind':hC>0.22?'warn-ind':'err-ind');
+
+  // ── Gauge ─────
+  const arcOff=204*(1-health/100);
+  const arcC=health>70?'#34d399':health>45?'#fbbf24':'#f87171';
+  document.getElementById('arcFg').style.strokeDashoffset=arcOff.toFixed(1);
+  document.getElementById('arcFg').setAttribute('stroke',arcC);
+  document.getElementById('gPct').textContent=`${Math.round(health)}%`;
+  document.getElementById('gPct').setAttribute('fill',arcC);
+  document.getElementById('g-rul').textContent=`${Math.round(rul).toLocaleString()} h`;
+  const sevTxt=health>80?'Low':health>60?'Moderate':health>40?'High':'Critical';
+  const sevC=health>80?'var(--green)':health>60?'var(--amber)':health>40?'var(--orange)':'var(--red)';
+  document.getElementById('g-sev').textContent=sevTxt; document.getElementById('g-sev').style.color=sevC;
+  document.getElementById('g-reg').textContent=regTxt; document.getElementById('g-reg').style.color=regC;
+  document.getElementById('g-mnt').textContent=rul<3000?'⚠ URGENT':rul<8000?'Soon':'On schedule';
+  document.getElementById('g-mnt').style.color=rul<3000?'var(--red)':rul<8000?'var(--amber)':'var(--txt1)';
+  document.getElementById('g-f').textContent=f.toFixed(4);
+
+  // ── Live chart ─────
+  tsLabels.push(`${tick}`); tsLabels.shift();
+  dH.push(parseFloat(h0.toFixed(2))); dH.shift();
+  dT.push(parseFloat((T/10).toFixed(2))); dT.shift();
+  dV.push(parseFloat((vibRMS*8).toFixed(3))); dV.shift();
+  liveChart.data.labels=[...tsLabels];
+  liveChart.data.datasets[0].data=[...dH];
+  liveChart.data.datasets[1].data=[...dT];
+  liveChart.data.datasets[2].data=[...dV];
+  liveChart.update('none');
+
+  // ── Stribeck live dot ─────
+  stribChart.data.datasets[4].data=[{x:logHn,y:f}];
+  stribChart.data.datasets[4].backgroundColor=hC>0.38?'#34d399':hC>0.22?'#fbbf24':'#f87171';
+  stribChart.update('none');
+
+  // ── Pressure P(θ) ─────
+  const pRaw=pressureDistrib(e);
+  const pMax=Math.max(...pRaw)||1;
+  const pData=pRaw.map(v=>(v/pMax*P_MPa).toFixed(3));
+  pressChart.data.datasets[0].data=pData;
+  pressChart.options.scales.y.max=parseFloat((P_MPa*1.15).toFixed(1));
+  pressChart.update('none');
+
+  // ── Film h(θ) ─────
+  const hData=filmThickness(e,C_use*1e6);
+  const minH=Math.min(...hData); const minIdx=hData.indexOf(minH);
+  hthChart.data.datasets[0].data=hData.map(v=>parseFloat(v.toFixed(2)));
+  const minPts=hData.map((v,i)=>i===minIdx?parseFloat(v.toFixed(2)):null);
+  hthChart.data.datasets[1].data=minPts;
+  hthChart.update('none');
+
+  // ── Checklist ─────
+  updateChecklist(hC,P_MPa,f,T);
+
+  // ── Alerts ─────
+  if(h0<3&&tick-lastAlertH0>8){addEvent(`CRITICAL: h₀=${h0.toFixed(1)} µm — metal contact risk`,'err');lastAlertH0=tick;}
+  else if(h0<7&&tick-lastAlertH0>12){addEvent(`Thin film warning: h₀=${h0.toFixed(1)} µm`,'warn');lastAlertH0=tick;}
+  if(T>113&&tick-lastAlertT>10){addEvent(`Thermal alert: oil T=${T.toFixed(0)} °C`,'warn');lastAlertT=tick;}
+  if(hC<0.22&&tick%8===0)addEvent('Mixed/boundary lubrication — check load or viscosity','warn');
+  if(health<45&&tick%18===0)addEvent('Health degradation — bearing inspection advised','err');
+  if(S<0.05&&tick%10===0)addEvent(`Low Sommerfeld S=${S.toFixed(3)} — starvation risk`,'warn');
+}
+
+function toggleSim(){
+  running=!running;
+  const btn=document.getElementById('simbtn');
+  btn.textContent=running?'⏸ Pause':'▶ Resume';
+  btn.className='btn'+(running?' active':'');
+}
+function resetSim(){
+  tick=0;rul=18500;health=95;lastStateN='';lastAlertH0=0;lastAlertT=0;
+  dH.fill(null);dT.fill(null);dV.fill(null);tsLabels.fill('');
+  clearLog();
+  addEvent('Digital twin reset. Physics engine restarted.','info');
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  initCharts();
+  addEvent('Crankshaft bearing digital twin v2 online.','info');
+  addEvent('Sommerfeld + Raimondi-Boyd physics engine active.','info');
+  addEvent('Scenario: Auto-cycle (Cold→Warm-Up→Steady→Peak→Fault)','info');
+  setInterval(step,1000);
+});
+</script>
+</body>
+</html>
